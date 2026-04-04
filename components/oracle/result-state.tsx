@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
-import { RefreshCw, Share2, Heart, BookOpen, ExternalLink } from "lucide-react"
+import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -55,12 +55,8 @@ function InfoSection({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-        {title}
-      </p>
-      <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
-        {value}
-      </p>
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{title}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{value}</p>
     </div>
   )
 }
@@ -68,64 +64,74 @@ function InfoSection({
 export function ResultState({ painting, comment, museumInfo, onReset }: ResultStateProps) {
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
+  const [hasImageError, setHasImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
 
-  // Эффект печатной машинки для текста
   useEffect(() => {
-    if (!isImageLoaded) return
-    
+    setDisplayedText("")
+
     let index = 0
     const interval = setInterval(() => {
       if (index <= comment.length) {
         setDisplayedText(comment.slice(0, index))
-        index++
+        index += 1
       } else {
         clearInterval(interval)
       }
     }, 15)
 
     return () => clearInterval(interval)
-  }, [comment, isImageLoaded])
+  }, [comment])
 
   return (
     <div className="animate-fade-in">
-      {/* Основной контент: картина и текст */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-        {/* Блок картины */}
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-12">
         <div className="flex flex-col">
-          {/* Картина в рамке */}
-          <div className="relative bg-card rounded-xl overflow-hidden shadow-xl">
-            {/* Декоративная рамка */}
-            <div className="absolute inset-0 border-8 border-accent/20 rounded-xl pointer-events-none z-10" />
-            
-            <Image
-              src={painting.imageUrl}
-              alt={`${painting.title} — ${painting.artist}`}
-              width={800}
-              height={600}
-              className={`w-full h-auto object-cover transition-opacity duration-700 ${
-                isImageLoaded ? "opacity-100" : "opacity-0"
-              }`}
-              onLoad={() => setIsImageLoaded(true)}
-              priority
-            />
+          <div className="relative overflow-hidden rounded-xl bg-card shadow-xl">
+            <div className="pointer-events-none absolute inset-0 z-10 rounded-xl border-8 border-accent/20" />
+
+            <div className="relative min-h-[320px] bg-muted/30">
+              {!hasImageError ? (
+                <Image
+                  src={painting.imageUrl}
+                  alt={`${painting.title} — ${painting.artist}`}
+                  width={800}
+                  height={600}
+                  className={`h-auto w-full object-cover transition-opacity duration-700 ${
+                    isImageLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                  onLoad={() => setIsImageLoaded(true)}
+                  onError={() => {
+                    setHasImageError(true)
+                    setIsImageLoaded(false)
+                  }}
+                  priority
+                />
+              ) : null}
+
+              {!isImageLoaded && !hasImageError ? (
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted/60 to-muted/20" />
+              ) : null}
+
+              {hasImageError ? (
+                <div className="flex min-h-[320px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
+                  Изображение картины не загрузилось, но описание и данные о работе доступны ниже.
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          {/* Музейная табличка */}
-          <div className={`mt-6 p-5 bg-card rounded-xl border border-border transition-all duration-500 delay-300 ${
-            isImageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}>
+          <div className="mt-6 translate-y-0 rounded-xl border border-border bg-card p-5 opacity-100 transition-all duration-500 delay-300">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-serif text-xl md:text-2xl text-foreground leading-snug">
+                <p className="font-serif text-xl leading-snug text-foreground md:text-2xl">
                   {painting.title}
                 </p>
-                <p className="text-muted-foreground mt-1">
+                <p className="mt-1 text-muted-foreground">
                   {painting.year ? `${painting.artist}, ${painting.year}` : painting.artist}
                 </p>
               </div>
-              
-              {/* Кнопки действий */}
+
               <div className="flex gap-2">
                 <Sheet>
                   <SheetTrigger asChild>
@@ -137,7 +143,7 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                       <BookOpen className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent className="w-full sm:max-w-lg overflow-y-auto border-l border-border bg-card">
+                  <SheetContent className="w-full overflow-y-auto border-l border-border bg-card sm:max-w-lg">
                     <SheetHeader className="pr-10">
                       <SheetTitle className="font-serif text-2xl leading-snug">
                         {painting.title}
@@ -147,14 +153,12 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                       </SheetDescription>
                     </SheetHeader>
 
-                    <div className="px-4 pb-6 space-y-6">
+                    <div className="space-y-6 px-4 pb-6">
                       <div className="rounded-2xl border border-border bg-background/70 p-4">
                         <p className="font-medium text-foreground">{painting.artist}</p>
-                        {painting.year && (
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {painting.year}
-                          </p>
-                        )}
+                        {painting.year ? (
+                          <p className="mt-1 text-sm text-muted-foreground">{painting.year}</p>
+                        ) : null}
                       </div>
 
                       <InfoSection title="Краткое описание" value={museumInfo.shortDescription} />
@@ -179,14 +183,18 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                     </div>
                   </SheetContent>
                 </Sheet>
+
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`rounded-full transition-colors ${isLiked ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`rounded-full transition-colors ${
+                    isLiked ? "text-destructive" : "text-muted-foreground hover:text-foreground"
+                  }`}
                   onClick={() => setIsLiked(!isLiked)}
                 >
-                  <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+                  <Heart className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`} />
                 </Button>
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -199,34 +207,27 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
           </div>
         </div>
 
-        {/* Блок текста от AI */}
-        <div className={`space-y-6 transition-all duration-500 delay-500 ${
-          isImageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-        }`}>
-          <div className="bg-card rounded-xl p-6 md:p-8 border border-border">
-            <p className="text-sm text-muted-foreground mb-4 uppercase tracking-wider">
+        <div className="space-y-6 translate-y-0 opacity-100 transition-all duration-500 delay-500">
+          <div className="rounded-xl border border-border bg-card p-6 md:p-8">
+            <p className="mb-4 text-sm uppercase tracking-wider text-muted-foreground">
               Послание оракула
             </p>
-            <p className="text-foreground text-base md:text-lg leading-relaxed whitespace-pre-line">
+            <p className="whitespace-pre-line text-base leading-relaxed text-foreground md:text-lg">
               {displayedText}
-              {displayedText.length < comment.length && (
-                <span className="inline-block w-0.5 h-5 bg-primary ml-1 animate-pulse" />
-              )}
+              {displayedText.length < comment.length ? (
+                <span className="ml-1 inline-block h-5 w-0.5 animate-pulse bg-primary" />
+              ) : null}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Кнопка попробовать снова */}
-      <div className={`flex justify-center mt-10 md:mt-14 transition-all duration-500 delay-1000 ${
-        isImageLoaded ? "opacity-100" : "opacity-0"
-      }`}>
+      <div className="mt-10 flex justify-center opacity-100 transition-all duration-500 delay-1000 md:mt-14">
         <Button
           onClick={onReset}
           variant="outline"
           size="lg"
-          className="rounded-full px-8 border-primary/30 hover:bg-primary/10 
-                     hover:border-primary transition-all duration-300 gap-2"
+          className="gap-2 rounded-full border-primary/30 px-8 transition-all duration-300 hover:border-primary hover:bg-primary/10"
         >
           <RefreshCw className="h-4 w-4" />
           Попробовать с другим настроением
