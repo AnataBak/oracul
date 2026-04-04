@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
-const GEMINI_MODEL = "gemini-2.5-flash-lite"
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+const OPENROUTER_MODEL = "openrouter/free"
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -29,16 +31,6 @@ type Artwork = {
 
 type ArtInstituteResponse = {
   data?: Artwork[]
-}
-
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string
-      }>
-    }
-  }>
 }
 
 function getErrorMessage(error: unknown): string {
@@ -75,6 +67,41 @@ function stripHtml(value: string | null): string | null {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .trim()
+}
+
+async function requestOpenRouterText(prompt: string): Promise<string> {
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "HTTP-Referer": "https://our-art-app.vercel.app",
+      "X-OpenRouter-Title": "Art Oracle",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    }),
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter request failed: ${await readErrorBody(response)}`)
+  }
+
+  const data = (await response.json()) as OpenRouterResponse
+  const content = data.choices?.[0]?.message?.content?.trim()
+
+  if (!content) {
+    throw new Error("OpenRouter returned an empty response")
+  }
+
+  return content
 }
 
 async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
@@ -142,10 +169,6 @@ export async function POST(request: Request) {
       throw new Error("OPENROUTER_API_KEY is not set")
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not set")
-    }
-
     const body = (await request.json()) as {
       userText?: unknown
       text?: unknown
@@ -165,36 +188,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "userText is required" }, { status: 400 })
     }
 
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://our-art-app.vercel.app",
-        "X-OpenRouter-Title": "Art Oracle",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openrouter/free",
-        messages: [
-          {
-            role: "user",
-            content: `Прочитай этот текст: "${userText}". Выдели главную эмоцию или объект. Напиши ровно ОДНО английское существительное, по которому можно найти классическую картину (например: storm, sadness, skull, love, chaos, abstract). Верни ТОЛЬКО это одно слово, без точек, кавычек и лишнего текста.`,
-          },
-        ],
-      }),
-      cache: "no-store",
-    })
-
-    if (!openRouterResponse.ok) {
-      throw new Error(`OpenRouter request failed: ${await readErrorBody(openRouterResponse)}`)
-    }
-
-    const openRouterData = (await openRouterResponse.json()) as OpenRouterResponse
-    const rawKeyword = openRouterData.choices?.[0]?.message?.content?.trim()
-
-    if (!rawKeyword) {
-      throw new Error("OpenRouter returned an empty keyword")
-    }
+    const rawKeyword = await requestOpenRouterText(
+      `Прочитай этот текст: "${userText}". Выдели главную эмоцию или объект. Напиши ровно ОДНО английское существительное, по которому можно найти классическую картину. Примеры: storm, sadness, skull, love, chaos, abstract. Верни только одно слово без точки, кавычек и объяснений.`,
+    )
 
     const searchKeyword = extractEnglishKeyword(rawKeyword)
     const artwork = await fetchArtwork(searchKeyword)
@@ -207,37 +203,11 @@ export async function POST(request: Request) {
     const title = artwork.title
     const artist = artwork.artist_title || "Неизвестный автор"
 
-    const geminiPrompt = `Пользователь поделился своими мыслями: "${userText}". 
-Мы подобрали для него классическую картину: "${title}" (автор: ${artist}). 
-Выступи в роли эмпатичного арт-терапевта. Напиши короткий, красивый и утешающий комментарий (3-4 предложения), объясняющий, почему эта картина идеально отражает текущее состояние пользователя. Обращайся к пользователю на "ты".`
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`
-
-    const geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: geminiPrompt }],
-          },
-        ],
-      }),
-      cache: "no-store",
-    })
-
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini request failed: ${await readErrorBody(geminiResponse)}`)
-    }
-
-    const geminiData = (await geminiResponse.json()) as GeminiResponse
-    const therapistText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-
-    if (!therapistText) {
-      throw new Error("Gemini returned an empty therapistText")
-    }
+    const therapistText = await requestOpenRouterText(
+      `Пользователь поделился своими мыслями: "${userText}".
+Мы подобрали для него классическую картину: "${title}" (автор: ${artist}).
+Выступи в роли эмпатичного арт-терапевта. Напиши короткий, красивый и утешающий комментарий на русском языке в 3-4 предложениях, объясняющий, почему эта картина отражает текущее состояние пользователя. Обращайся к пользователю на "ты". Не используй списки и служебные пояснения.`,
+    )
 
     return NextResponse.json({
       imageUrl,
