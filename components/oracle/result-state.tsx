@@ -74,7 +74,7 @@ export function ResultState({ painting, comment, onReset }: ResultStateProps) {
                   {painting.title}
                 </p>
                 <p className="text-muted-foreground mt-1">
-                  {painting.artist}, {painting.year}
+                  {painting.year ? `${painting.artist}, ${painting.year}` : painting.artist}
                 </p>
               </div>
               
