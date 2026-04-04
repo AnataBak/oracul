@@ -15,6 +15,15 @@ type Artwork = {
   title: string
   artist_title: string | null
   image_id: string | null
+  date_display: string | null
+  place_of_origin: string | null
+  medium_display: string | null
+  dimensions: string | null
+  credit_line: string | null
+  short_description: string | null
+  description: string | null
+  publication_history: string | null
+  provenance_text: string | null
 }
 
 type ArtInstituteResponse = {
@@ -51,9 +60,41 @@ async function readErrorBody(response: Response): Promise<string> {
   return text || `Request failed with status ${response.status}`
 }
 
+function stripHtml(value: string | null): string | null {
+  if (!value) {
+    return null
+  }
+
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim()
+}
+
 async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
+  const fields = [
+    "id",
+    "title",
+    "artist_title",
+    "image_id",
+    "date_display",
+    "place_of_origin",
+    "medium_display",
+    "dimensions",
+    "credit_line",
+    "short_description",
+    "description",
+    "publication_history",
+    "provenance_text",
+  ].join(",")
+
   const requestArtwork = async (keyword: string): Promise<Artwork[]> => {
-    const artUrl = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(keyword)}&fields=id,title,artist_title,image_id`
+    const artUrl = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(keyword)}&fields=${fields}`
     const artResponse = await fetch(artUrl, {
       cache: "no-store",
     })
@@ -109,10 +150,7 @@ export async function POST(request: Request) {
             : ""
 
     if (!userText.trim()) {
-      return NextResponse.json(
-        { error: "userText is required" },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: "userText is required" }, { status: 400 })
     }
 
     const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -193,7 +231,22 @@ export async function POST(request: Request) {
       imageUrl,
       title,
       artist,
+      year: artwork.date_display || "",
       therapistText,
+      museumInfo: {
+        source: "Art Institute of Chicago API",
+        artworkId: artwork.id,
+        dateDisplay: artwork.date_display,
+        placeOfOrigin: artwork.place_of_origin,
+        mediumDisplay: artwork.medium_display,
+        dimensions: artwork.dimensions,
+        creditLine: artwork.credit_line,
+        shortDescription: stripHtml(artwork.short_description),
+        description: stripHtml(artwork.description),
+        publicationHistory: stripHtml(artwork.publication_history),
+        provenanceText: stripHtml(artwork.provenance_text),
+        artworkUrl: `https://www.artic.edu/artworks/${artwork.id}`,
+      },
     })
   } catch (error) {
     console.error("Error in /api/art:", error)

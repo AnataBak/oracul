@@ -13,7 +13,22 @@ type ArtOracleResponse = {
   imageUrl: string
   title: string
   artist: string
+  year?: string
   therapistText: string
+  museumInfo: {
+    source: string
+    artworkId: number
+    dateDisplay: string | null
+    placeOfOrigin: string | null
+    mediumDisplay: string | null
+    dimensions: string | null
+    creditLine: string | null
+    shortDescription: string | null
+    description: string | null
+    publicationHistory: string | null
+    provenanceText: string | null
+    artworkUrl: string
+  }
 }
 
 type OracleResult = {
@@ -24,6 +39,7 @@ type OracleResult = {
     imageUrl: string
   }
   comment: string
+  museumInfo: ArtOracleResponse["museumInfo"]
 }
 
 export function ArtOracle() {
@@ -59,7 +75,7 @@ export function ArtOracle() {
         throw new Error(data.error || "Не удалось получить ответ от сервера")
       }
 
-      if (!data.imageUrl || !data.title || !data.artist || !data.therapistText) {
+      if (!data.imageUrl || !data.title || !data.artist || !data.therapistText || !data.museumInfo) {
         throw new Error("Сервер вернул неполный ответ")
       }
 
@@ -67,10 +83,11 @@ export function ArtOracle() {
         painting: {
           title: data.title,
           artist: data.artist,
-          year: "",
+          year: data.year || "",
           imageUrl: data.imageUrl,
         },
         comment: data.therapistText,
+        museumInfo: data.museumInfo,
       })
 
       setStatus("result")
@@ -133,6 +150,7 @@ export function ArtOracle() {
             <ResultState
               painting={result.painting}
               comment={result.comment}
+              museumInfo={result.museumInfo}
               onReset={handleReset}
             />
           )}

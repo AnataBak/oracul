@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { RefreshCw, Share2, Heart } from "lucide-react"
+import { RefreshCw, Share2, Heart, BookOpen, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 interface Painting {
   title: string
@@ -12,13 +20,52 @@ interface Painting {
   imageUrl: string
 }
 
+interface MuseumInfo {
+  source: string
+  artworkId: number
+  dateDisplay: string | null
+  placeOfOrigin: string | null
+  mediumDisplay: string | null
+  dimensions: string | null
+  creditLine: string | null
+  shortDescription: string | null
+  description: string | null
+  publicationHistory: string | null
+  provenanceText: string | null
+  artworkUrl: string
+}
+
 interface ResultStateProps {
   painting: Painting
   comment: string
+  museumInfo: MuseumInfo
   onReset: () => void
 }
 
-export function ResultState({ painting, comment, onReset }: ResultStateProps) {
+function InfoSection({
+  title,
+  value,
+}: {
+  title: string
+  value: string | null
+}) {
+  if (!value) {
+    return null
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        {title}
+      </p>
+      <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+export function ResultState({ painting, comment, museumInfo, onReset }: ResultStateProps) {
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
@@ -80,6 +127,58 @@ export function ResultState({ painting, comment, onReset }: ResultStateProps) {
               
               {/* Кнопки действий */}
               <div className="flex gap-2">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full text-muted-foreground hover:text-foreground"
+                    >
+                      <BookOpen className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-lg overflow-y-auto border-l border-border bg-card">
+                    <SheetHeader className="pr-10">
+                      <SheetTitle className="font-serif text-2xl leading-snug">
+                        {painting.title}
+                      </SheetTitle>
+                      <SheetDescription className="text-base">
+                        Информация о работе из {museumInfo.source}
+                      </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="px-4 pb-6 space-y-6">
+                      <div className="rounded-2xl border border-border bg-background/70 p-4">
+                        <p className="font-medium text-foreground">{painting.artist}</p>
+                        {painting.year && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {painting.year}
+                          </p>
+                        )}
+                      </div>
+
+                      <InfoSection title="Краткое описание" value={museumInfo.shortDescription} />
+                      <InfoSection title="Описание" value={museumInfo.description} />
+                      <InfoSection title="Дата" value={museumInfo.dateDisplay} />
+                      <InfoSection title="Место происхождения" value={museumInfo.placeOfOrigin} />
+                      <InfoSection title="Материалы" value={museumInfo.mediumDisplay} />
+                      <InfoSection title="Размеры" value={museumInfo.dimensions} />
+                      <InfoSection title="Как попала в коллекцию" value={museumInfo.creditLine} />
+                      <InfoSection title="История публикаций" value={museumInfo.publicationHistory} />
+                      <InfoSection title="Провенанс" value={museumInfo.provenanceText} />
+
+                      <a
+                        href={museumInfo.artworkUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        Открыть страницу картины в музее
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  </SheetContent>
+                </Sheet>
                 <Button
                   variant="ghost"
                   size="icon"
