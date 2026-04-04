@@ -108,15 +108,26 @@ async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
     return Array.isArray(artData.data) ? artData.data : []
   }
 
+  const pickRandomArtwork = (artworks: Artwork[]): Artwork | null => {
+    const artworksWithImages = artworks.filter((item) => item.image_id)
+
+    if (artworksWithImages.length === 0) {
+      return null
+    }
+
+    const randomIndex = Math.floor(Math.random() * artworksWithImages.length)
+    return artworksWithImages[randomIndex] ?? null
+  }
+
   const primaryResults = await requestArtwork(searchKeyword)
-  const primaryArtwork = primaryResults.find((item) => item.image_id)
+  const primaryArtwork = pickRandomArtwork(primaryResults)
 
   if (primaryArtwork) {
     return primaryArtwork
   }
 
   const fallbackResults = await requestArtwork("abstract")
-  const fallbackArtwork = fallbackResults.find((item) => item.image_id)
+  const fallbackArtwork = pickRandomArtwork(fallbackResults)
 
   if (!fallbackArtwork) {
     throw new Error("No artwork with image was found in the Art Institute API")
