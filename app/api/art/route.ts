@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
+const GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -199,7 +200,7 @@ export async function POST(request: Request) {
 Мы подобрали для него классическую картину: "${title}" (автор: ${artist}). 
 Выступи в роли эмпатичного арт-терапевта. Напиши короткий, красивый и утешающий комментарий (3-4 предложения), объясняющий, почему эта картина идеально отражает текущее состояние пользователя. Обращайся к пользователю на "ты".`
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${process.env.GEMINI_API_KEY}`
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
