@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Теплая тема "Уютная Галерея" для Арт-Оракула */
+:root {
+  --background: #FAF7F2;
+  --foreground: #2D3B36;
+  --card: #FFFFFF;
+  --card-foreground: #2D3B36;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D3B36;
+  --primary: #4A6B5D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F0EBE3;
+  --secondary-foreground: #2D3B36;
+  --muted: #E8E2D9;
+  --muted-foreground: #6B7B75;
+  --accent: #C4A77D;
+  --accent-foreground: #2D3B36;
+  --destructive: #C57B57;
+  --destructive-foreground: #FFFFFF;
+  --border: #E0D8CC;
+  --input: #F5F1EA;
+  --ring: #4A6B5D;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #1A1F1C;
+  --foreground: #F0EBE3;
+  --card: #242A26;
+  --card-foreground: #F0EBE3;
+  --popover: #242A26;
+  --popover-foreground: #F0EBE3;
+  --primary: #7BA393;
+  --primary-foreground: #1A1F1C;
+  --secondary: #2D3B36;
+  --secondary-foreground: #F0EBE3;
+  --muted: #2D3B36;
+  --muted-foreground: #9BA89F;
+  --accent: #C4A77D;
+  --accent-foreground: #1A1F1C;
+  --destructive: #C57B57;
+  --destructive-foreground: #F0EBE3;
+  --border: #3D4A44;
+  --input: #2D3B36;
+  --ring: #7BA393;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-serif: var(--font-playfair), Georgia, serif;
+  --font-mono: 'Geist Mono', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sage: #4A6B5D;
+  --color-warm: #C4A77D;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Анимации для плавных переходов */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-text {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+
+.animate-pulse-text {
+  animation: pulse-text 2s ease-in-out infinite;
+}
+
+/* Стили для области ввода */
+.textarea-gallery {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.textarea-gallery:focus {
+  outline: none;
+  border-bottom-color: var(--primary);
+  box-shadow: 0 2px 20px -10px var(--primary);
+}
+
+/* Эффект тени для картины */
+.painting-shadow {
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}

@@ -1,0 +1,98 @@
+"use client"
+
+import { Palette, Send } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface InputStateProps {
+  value: string
+  onChange: (value: string) => void
+  onSubmit: () => void
+}
+
+export function InputState({ value, onChange, onSubmit }: InputStateProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.metaKey) {
+      e.preventDefault()
+      onSubmit()
+    }
+  }
+
+  return (
+    <div className="animate-fade-in flex flex-col items-center text-center gap-10">
+      {/* Логотип/Иконка */}
+      <div className="relative">
+        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-primary/10 flex items-center justify-center">
+          <Palette className="w-10 h-10 md:w-12 md:h-12 text-primary" />
+        </div>
+        <div className="absolute -inset-2 rounded-full border border-primary/20 animate-pulse" />
+      </div>
+
+      {/* Заголовок */}
+      <div className="space-y-4">
+        <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground tracking-tight text-balance">
+          Арт-Оракул
+        </h1>
+        <p className="text-muted-foreground text-base md:text-lg max-w-xl mx-auto leading-relaxed">
+          Расскажите, что у вас на душе, и мы подберём картину из коллекции 
+          мировых музеев, которая откликнется именно вам
+        </p>
+      </div>
+
+      {/* Карточка ввода */}
+      <div className="w-full max-w-2xl">
+        <div className="bg-card rounded-2xl p-6 md:p-8 shadow-lg shadow-foreground/5 border border-border">
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Сегодня я чувствую себя..."
+            className="w-full min-h-[140px] md:min-h-[160px] resize-none 
+                       text-foreground text-lg md:text-xl leading-relaxed
+                       placeholder:text-muted-foreground/60 
+                       bg-transparent border-none focus:ring-0 focus:outline-none"
+            autoFocus
+          />
+          
+          {/* Разделитель */}
+          <div className="h-px bg-border my-4" />
+          
+          {/* Нижняя часть карточки */}
+          <div className="flex items-center justify-between">
+            <p className="text-muted-foreground text-sm">
+              {value.length > 0 
+                ? `${value.length} символов` 
+                : "Опишите своё настроение или мысли"}
+            </p>
+            
+            <Button
+              onClick={onSubmit}
+              disabled={!value.trim()}
+              className="rounded-full px-6 h-11 bg-primary hover:bg-primary/90 
+                         text-primary-foreground transition-all duration-300 
+                         disabled:opacity-40 disabled:cursor-not-allowed
+                         hover:shadow-lg hover:shadow-primary/20"
+            >
+              <span className="mr-2">Найти картину</span>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Подсказки настроений */}
+      <div className="flex flex-wrap justify-center gap-2 max-w-xl">
+        {["Спокойствие", "Вдохновение", "Меланхолия", "Радость", "Задумчивость"].map((mood) => (
+          <button
+            key={mood}
+            onClick={() => onChange(value + (value ? " " : "") + mood.toLowerCase())}
+            className="px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm
+                       hover:bg-primary/10 hover:text-primary transition-colors duration-200
+                       border border-transparent hover:border-primary/20"
+          >
+            {mood}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
