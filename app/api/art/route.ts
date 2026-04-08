@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
+
 const GEMINI_MODEL = "gemini-2.5-flash-lite"
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+const OPENROUTER_MODEL = "openrouter/free"
+const SEARCH_PAGE_SIZE = 24
+const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
+const RECENT_ARTWORK_LIMIT = 24
+const recentArtworkIds: number[] = []
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -38,6 +45,9 @@ type Artwork = {
 
 type ArtInstituteResponse = {
   data?: Artwork[]
+  pagination?: {
+    total?: number
+  }
 }
 
 type GeminiResponse = {
@@ -58,11 +68,11 @@ function getErrorMessage(error: unknown): string {
   return "Unknown error"
 }
 
-function extractEnglishKeyword(rawKeyword: string): string {
-  const normalized = rawKeyword.trim().toLowerCase()
-  const match = normalized.match(/[a-z]+(?:-[a-z]+)?/)
+function extractEnglishKeywords(rawKeywords: string): string[] {
+  const matches = rawKeywords.toLowerCase().match(/[a-z]+(?:-[a-z]+)?/g) ?? []
+  const uniqueKeywords = Array.from(new Set(matches.map((item) => item.trim()).filter(Boolean)))
 
-  return match?.[0] ?? "abstract"
+  return uniqueKeywords.slice(0, 3)
 }
 
 async function readErrorBody(response: Response): Promise<string> {
@@ -86,7 +96,72 @@ function stripHtml(value: string | null): string | null {
     .trim()
 }
 
-async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items]
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1))
+    ;[next[index], next[randomIndex]] = [next[randomIndex] as T, next[index] as T]
+  }
+
+  return next
+}
+
+function rememberArtworkId(artworkId: number) {
+  recentArtworkIds.unshift(artworkId)
+
+  if (recentArtworkIds.length > RECENT_ARTWORK_LIMIT) {
+    recentArtworkIds.length = RECENT_ARTWORK_LIMIT
+  }
+}
+
+async function requestOpenRouterText(prompt: string): Promise<string> {
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "HTTP-Referer": "https://our-art-app.vercel.app",
+      "X-OpenRouter-Title": "Art Oracle",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    }),
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter request failed: ${await readErrorBody(response)}`)
+  }
+
+  const data = (await response.json()) as OpenRouterResponse
+  const content = data.choices?.[0]?.message?.content?.trim()
+
+  if (!content) {
+    throw new Error("OpenRouter returned an empty response")
+  }
+
+  return content
+}
+
+async function buildKeywordCandidates(userText: string): Promise<string[]> {
+  const rawKeywords = await requestOpenRouterText(
+    `Прочитай этот текст: "${userText}". Верни 3 разных английских существительных или коротких образа, связанных с настроением пользователя, по которым можно искать классическую картину. Примеры: storm, silence, longing, moon, memory, river. Ответь только тремя словами или короткими фразами на английском через запятую без пояснений.`,
+  )
+
+  const primaryKeywords = extractEnglishKeywords(rawKeywords)
+  const fallbackKeywords = ["abstract", "dream", "memory", "light", "portrait", "nature"]
+
+  return Array.from(new Set([...primaryKeywords, ...fallbackKeywords]))
+}
+
+async function fetchArtwork(searchKeywords: string[]): Promise<Artwork> {
   const fields = [
     "id",
     "title",
@@ -110,8 +185,11 @@ async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
     "thumbnail",
   ].join(",")
 
-  const requestArtwork = async (keyword: string): Promise<Artwork[]> => {
-    const artUrl = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(keyword)}&fields=${fields}`
+  const requestArtworkBatch = async (keyword: string, offset: number): Promise<Artwork[]> => {
+    const artUrl =
+      `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(keyword)}` +
+      `&fields=${fields}&limit=${SEARCH_PAGE_SIZE}&from=${offset}`
+
     const artResponse = await fetch(artUrl, {
       cache: "no-store",
     })
@@ -121,35 +199,57 @@ async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
     }
 
     const artData = (await artResponse.json()) as ArtInstituteResponse
+    const total = artData.pagination?.total ?? 0
+
+    if (total > SEARCH_PAGE_SIZE) {
+      const maxOffset = Math.max(0, total - SEARCH_PAGE_SIZE)
+      const boundedOffset = Math.min(offset, maxOffset)
+
+      if (boundedOffset !== offset) {
+        return requestArtworkBatch(keyword, boundedOffset)
+      }
+    }
+
     return Array.isArray(artData.data) ? artData.data : []
   }
 
-  const pickRandomArtwork = (artworks: Artwork[]): Artwork | null => {
-    const artworksWithImages = artworks.filter((item) => item.image_id)
+  const collectCandidates = async (keyword: string): Promise<Artwork[]> => {
+    const offsets = shuffleArray(SEARCH_OFFSETS)
+    const batches = await Promise.all(offsets.map((offset) => requestArtworkBatch(keyword, offset)))
+    const uniqueArtworks = new Map<number, Artwork>()
 
-    if (artworksWithImages.length === 0) {
-      return null
+    for (const artwork of batches.flat()) {
+      if (!artwork.image_id || recentArtworkIds.includes(artwork.id)) {
+        continue
+      }
+
+      uniqueArtworks.set(artwork.id, artwork)
     }
 
-    const randomIndex = Math.floor(Math.random() * artworksWithImages.length)
-    return artworksWithImages[randomIndex] ?? null
+    return Array.from(uniqueArtworks.values())
   }
 
-  const primaryResults = await requestArtwork(searchKeyword)
-  const primaryArtwork = pickRandomArtwork(primaryResults)
+  for (const keyword of shuffleArray(searchKeywords)) {
+    const candidates = await collectCandidates(keyword)
+    const selectedArtwork = shuffleArray(candidates)[0]
 
-  if (primaryArtwork) {
-    return primaryArtwork
+    if (selectedArtwork) {
+      rememberArtworkId(selectedArtwork.id)
+      return selectedArtwork
+    }
   }
 
-  const fallbackResults = await requestArtwork("abstract")
-  const fallbackArtwork = pickRandomArtwork(fallbackResults)
+  for (const keyword of shuffleArray(["abstract", "dream", "memory", "light", "portrait"])) {
+    const candidates = await collectCandidates(keyword)
+    const selectedArtwork = shuffleArray(candidates)[0]
 
-  if (!fallbackArtwork) {
-    throw new Error("No artwork with image was found in the Art Institute API")
+    if (selectedArtwork) {
+      rememberArtworkId(selectedArtwork.id)
+      return selectedArtwork
+    }
   }
 
-  return fallbackArtwork
+  throw new Error("No artwork with image was found in the Art Institute API")
 }
 
 export async function POST(request: Request) {
@@ -181,39 +281,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "userText is required" }, { status: 400 })
     }
 
-    const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://our-art-app.vercel.app",
-        "X-OpenRouter-Title": "Art Oracle",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openrouter/free",
-        messages: [
-          {
-            role: "user",
-            content: `Прочитай этот текст: "${userText}". Выдели главную эмоцию или объект. Напиши ровно ОДНО английское существительное, по которому можно найти классическую картину (например: storm, sadness, skull, love, chaos, abstract). Верни ТОЛЬКО это одно слово, без точек, кавычек и лишнего текста.`,
-          },
-        ],
-      }),
-      cache: "no-store",
-    })
-
-    if (!openRouterResponse.ok) {
-      throw new Error(`OpenRouter request failed: ${await readErrorBody(openRouterResponse)}`)
-    }
-
-    const openRouterData = (await openRouterResponse.json()) as OpenRouterResponse
-    const rawKeyword = openRouterData.choices?.[0]?.message?.content?.trim()
-
-    if (!rawKeyword) {
-      throw new Error("OpenRouter returned an empty keyword")
-    }
-
-    const searchKeyword = extractEnglishKeyword(rawKeyword)
-    const artwork = await fetchArtwork(searchKeyword)
+    const searchKeywords = await buildKeywordCandidates(userText)
+    const artwork = await fetchArtwork(searchKeywords)
 
     if (!artwork.image_id) {
       throw new Error("Selected artwork does not contain an image_id")
@@ -232,8 +301,8 @@ export async function POST(request: Request) {
         ? artwork.subject_titles.join(", ")
         : "Темы не указаны"
 
-    const geminiPrompt = `Пользователь поделился своими мыслями: "${userText}". 
-Мы подобрали для него классическую картину: "${title}" (автор: ${artist}). 
+    const geminiPrompt = `Пользователь поделился своими мыслями: "${userText}".
+Мы подобрали для него классическую картину: "${title}" (автор: ${artist}).
 Дополнительная информация о работе:
 - Сведения о художнике: ${artistDisplay}
 - Краткое описание: ${shortDescription}
