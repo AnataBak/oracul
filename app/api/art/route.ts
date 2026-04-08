@@ -222,10 +222,26 @@ export async function POST(request: Request) {
     const imageUrl = `/api/art-image/${artwork.image_id}`
     const title = artwork.title
     const artist = artwork.artist_title || "Неизвестный автор"
+    const artistDisplay = stripHtml(artwork.artist_display) || "Нет дополнительной информации о художнике"
+    const shortDescription = stripHtml(artwork.short_description) || "Нет краткого описания"
+    const description = stripHtml(artwork.description) || "Нет полного описания"
+    const styleTitle = artwork.style_title || "Неуказанный стиль"
+    const classificationTitle = artwork.classification_title || "Неуказанный тип работы"
+    const subjectTitles =
+      Array.isArray(artwork.subject_titles) && artwork.subject_titles.length > 0
+        ? artwork.subject_titles.join(", ")
+        : "Темы не указаны"
 
     const geminiPrompt = `Пользователь поделился своими мыслями: "${userText}". 
 Мы подобрали для него классическую картину: "${title}" (автор: ${artist}). 
-Выступи в роли эмпатичного арт-терапевта. Напиши короткий, красивый и утешающий комментарий (3-4 предложения), объясняющий, почему эта картина идеально отражает текущее состояние пользователя. Обращайся к пользователю на "ты".`
+Дополнительная информация о работе:
+- Сведения о художнике: ${artistDisplay}
+- Краткое описание: ${shortDescription}
+- Полное описание: ${description}
+- Стиль: ${styleTitle}
+- Тип работы: ${classificationTitle}
+- Темы: ${subjectTitles}
+Выступи в роли эмпатичного арт-терапевта. Напиши короткий, красивый и утешающий комментарий (3-4 предложения), объясняющий, почему эта картина идеально отражает текущее состояние пользователя. Опирайся на музейное описание и темы работы, а не только на название. Обращайся к пользователю на "ты". Не используй списки в ответе.`
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`
 
