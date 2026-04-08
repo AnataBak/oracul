@@ -21,9 +21,15 @@ type ArtOracleResponse = {
     artworkId: number
     dateDisplay: string | null
     placeOfOrigin: string | null
+    artistDisplay: string | null
+    styleTitle: string | null
+    classificationTitle: string | null
+    subjectTitles: string[]
     mediumDisplay: string | null
     dimensions: string | null
     creditLine: string | null
+    mainReferenceNumber: string | null
+    exhibitionHistory: string | null
     shortDescription: string | null
     description: string | null
     publicationHistory: string | null

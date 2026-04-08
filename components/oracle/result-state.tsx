@@ -26,9 +26,15 @@ interface MuseumInfo {
   artworkId: number
   dateDisplay: string | null
   placeOfOrigin: string | null
+  artistDisplay: string | null
+  styleTitle: string | null
+  classificationTitle: string | null
+  subjectTitles: string[]
   mediumDisplay: string | null
   dimensions: string | null
   creditLine: string | null
+  mainReferenceNumber: string | null
+  exhibitionHistory: string | null
   shortDescription: string | null
   description: string | null
   publicationHistory: string | null
@@ -60,6 +66,20 @@ function InfoSection({
       <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{value}</p>
     </div>
   )
+}
+
+function ListSection({
+  title,
+  values,
+}: {
+  title: string
+  values: string[]
+}) {
+  if (values.length === 0) {
+    return null
+  }
+
+  return <InfoSection title={title} value={values.join(", ")} />
 }
 
 export function ResultState({ painting, comment, museumInfo, onReset }: ResultStateProps) {
@@ -252,11 +272,17 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
 
                       <InfoSection title="Краткое описание" value={displayMuseumInfo.shortDescription} />
                       <InfoSection title="Описание" value={displayMuseumInfo.description} />
+                      <InfoSection title="О художнике" value={displayMuseumInfo.artistDisplay} />
                       <InfoSection title="Дата" value={displayMuseumInfo.dateDisplay} />
                       <InfoSection title="Место происхождения" value={displayMuseumInfo.placeOfOrigin} />
+                      <InfoSection title="Стиль" value={displayMuseumInfo.styleTitle} />
+                      <InfoSection title="Тип работы" value={displayMuseumInfo.classificationTitle} />
+                      <ListSection title="Темы" values={displayMuseumInfo.subjectTitles} />
                       <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
                       <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
                       <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
+                      <InfoSection title="Инвентарный номер" value={displayMuseumInfo.mainReferenceNumber} />
+                      <InfoSection title="История выставок" value={displayMuseumInfo.exhibitionHistory} />
                       <InfoSection title="История публикаций" value={displayMuseumInfo.publicationHistory} />
                       <InfoSection title="Провенанс" value={displayMuseumInfo.provenanceText} />
 
