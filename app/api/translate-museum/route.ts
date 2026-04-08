@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 
 export const runtime = "nodejs"
 
-const GEMINI_TRANSLATE_MODEL = "gemini-2.0-flash-lite"
+const GEMINI_TRANSLATE_MODEL = "gemini-2.5-flash"
 
 type MuseumInfoPayload = {
   source: string
