@@ -42,6 +42,23 @@ async function readErrorBody(response: Response): Promise<string> {
   return text || `Request failed with status ${response.status}`
 }
 
+function extractJsonObject(value: string): string {
+  const fencedMatch = value.match(/```json\s*([\s\S]*?)```/i)
+
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim()
+  }
+
+  const startIndex = value.indexOf("{")
+  const endIndex = value.lastIndexOf("}")
+
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    throw new Error("Translation model did not return JSON")
+  }
+
+  return value.slice(startIndex, endIndex + 1)
+}
+
 async function requestGeminiTranslation(museumInfo: MuseumInfoPayload): Promise<MuseumInfoPayload> {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TRANSLATE_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`
 
@@ -63,7 +80,6 @@ ${JSON.stringify(museumInfo)}`
       ],
       generationConfig: {
         temperature: 0.1,
-        responseMimeType: "application/json",
       },
     }),
     cache: "no-store",
@@ -80,7 +96,7 @@ ${JSON.stringify(museumInfo)}`
     throw new Error("Gemini translation returned an empty response")
   }
 
-  return JSON.parse(content) as MuseumInfoPayload
+  return JSON.parse(extractJsonObject(content)) as MuseumInfoPayload
 }
 
 export async function POST(request: Request) {
