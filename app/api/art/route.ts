@@ -203,7 +203,7 @@ export async function POST(request: Request) {
       throw new Error("Selected artwork does not contain an image_id")
     }
 
-    const imageUrl = `https://www.artic.edu/iiif/2/${artwork.image_id}/full/843,/0/default.jpg`
+    const imageUrl = `/api/art-image/${artwork.image_id}`
     const title = artwork.title
     const artist = artwork.artist_title || "Неизвестный автор"
 
