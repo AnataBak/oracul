@@ -25,6 +25,9 @@ type Artwork = {
   description: string | null
   publication_history: string | null
   provenance_text: string | null
+  thumbnail?: {
+    lqip?: string | null
+  } | null
 }
 
 type ArtInstituteResponse = {
@@ -92,6 +95,7 @@ async function fetchArtwork(searchKeyword: string): Promise<Artwork> {
     "description",
     "publication_history",
     "provenance_text",
+    "thumbnail",
   ].join(",")
 
   const requestArtwork = async (keyword: string): Promise<Artwork[]> => {
@@ -241,6 +245,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       imageUrl,
+      fallbackImageUrl: artwork.thumbnail?.lqip || "",
       title,
       artist,
       year: artwork.date_display || "",

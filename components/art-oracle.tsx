@@ -11,6 +11,7 @@ export type OracleStatus = "input" | "loading" | "result"
 
 type ArtOracleResponse = {
   imageUrl: string
+  fallbackImageUrl?: string
   title: string
   artist: string
   year?: string
@@ -37,6 +38,7 @@ type OracleResult = {
     artist: string
     year: string
     imageUrl: string
+    fallbackImageUrl?: string
   }
   comment: string
   museumInfo: ArtOracleResponse["museumInfo"]
@@ -85,6 +87,7 @@ export function ArtOracle() {
           artist: data.artist,
           year: data.year || "",
           imageUrl: data.imageUrl,
+          fallbackImageUrl: data.fallbackImageUrl || "",
         },
         comment: data.therapistText,
         museumInfo: data.museumInfo,
