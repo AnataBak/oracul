@@ -68,6 +68,10 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
   const [hasImageError, setHasImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [currentImageUrl, setCurrentImageUrl] = useState(painting.imageUrl)
+  const [displayMuseumInfo, setDisplayMuseumInfo] = useState(museumInfo)
+  const [translatedMuseumInfo, setTranslatedMuseumInfo] = useState<MuseumInfo | null>(null)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [isShowingTranslation, setIsShowingTranslation] = useState(false)
 
   useEffect(() => {
     setDisplayedText("")
@@ -90,6 +94,58 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
     setIsImageLoaded(false)
     setHasImageError(false)
   }, [painting.imageUrl])
+
+  useEffect(() => {
+    setDisplayMuseumInfo(museumInfo)
+    setTranslatedMuseumInfo(null)
+    setIsShowingTranslation(false)
+    setIsTranslating(false)
+  }, [museumInfo])
+
+  const handleTranslateToggle = async () => {
+    if (isShowingTranslation) {
+      setDisplayMuseumInfo(museumInfo)
+      setIsShowingTranslation(false)
+      return
+    }
+
+    if (translatedMuseumInfo) {
+      setDisplayMuseumInfo(translatedMuseumInfo)
+      setIsShowingTranslation(true)
+      return
+    }
+
+    try {
+      setIsTranslating(true)
+
+      const response = await fetch("/api/translate-museum", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ museumInfo }),
+      })
+
+      const data = (await response.json()) as {
+        museumInfo?: MuseumInfo
+        error?: string
+      }
+
+      if (!response.ok || !data.museumInfo) {
+        throw new Error(data.error || "Не удалось перевести текст")
+      }
+
+      setTranslatedMuseumInfo(data.museumInfo)
+      setDisplayMuseumInfo(data.museumInfo)
+      setIsShowingTranslation(true)
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Не удалось перевести текст. Попробуй еще раз.",
+      )
+    } finally {
+      setIsTranslating(false)
+    }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -163,11 +219,30 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                         {painting.title}
                       </SheetTitle>
                       <SheetDescription className="text-base">
-                        Информация о работе из {museumInfo.source}
+                        Информация о работе из {displayMuseumInfo.source}
                       </SheetDescription>
                     </SheetHeader>
 
                     <div className="space-y-6 px-4 pb-6">
+                      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/70 p-4">
+                        <p className="text-sm text-muted-foreground">
+                          {isShowingTranslation ? "Показан перевод на русский" : "Показан оригинальный текст"}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleTranslateToggle}
+                          disabled={isTranslating}
+                        >
+                          {isTranslating
+                            ? "Переводим..."
+                            : isShowingTranslation
+                              ? "Показать оригинал"
+                              : "Перевести"}
+                        </Button>
+                      </div>
+
                       <div className="rounded-2xl border border-border bg-background/70 p-4">
                         <p className="font-medium text-foreground">{painting.artist}</p>
                         {painting.year ? (
@@ -175,18 +250,18 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                         ) : null}
                       </div>
 
-                      <InfoSection title="Краткое описание" value={museumInfo.shortDescription} />
-                      <InfoSection title="Описание" value={museumInfo.description} />
-                      <InfoSection title="Дата" value={museumInfo.dateDisplay} />
-                      <InfoSection title="Место происхождения" value={museumInfo.placeOfOrigin} />
-                      <InfoSection title="Материалы" value={museumInfo.mediumDisplay} />
-                      <InfoSection title="Размеры" value={museumInfo.dimensions} />
-                      <InfoSection title="Как попала в коллекцию" value={museumInfo.creditLine} />
-                      <InfoSection title="История публикаций" value={museumInfo.publicationHistory} />
-                      <InfoSection title="Провенанс" value={museumInfo.provenanceText} />
+                      <InfoSection title="Краткое описание" value={displayMuseumInfo.shortDescription} />
+                      <InfoSection title="Описание" value={displayMuseumInfo.description} />
+                      <InfoSection title="Дата" value={displayMuseumInfo.dateDisplay} />
+                      <InfoSection title="Место происхождения" value={displayMuseumInfo.placeOfOrigin} />
+                      <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
+                      <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
+                      <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
+                      <InfoSection title="История публикаций" value={displayMuseumInfo.publicationHistory} />
+                      <InfoSection title="Провенанс" value={displayMuseumInfo.provenanceText} />
 
                       <a
-                        href={museumInfo.artworkUrl}
+                        href={displayMuseumInfo.artworkUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
