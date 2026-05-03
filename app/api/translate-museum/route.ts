@@ -6,7 +6,7 @@ const GEMINI_TRANSLATE_MODEL = "gemma-3-27b-it"
 
 type MuseumInfoPayload = {
   source: string
-  artworkId: number
+  artworkId: string
   dateDisplay: string | null
   placeOfOrigin: string | null
   mediumDisplay: string | null
@@ -15,7 +15,6 @@ type MuseumInfoPayload = {
   shortDescription: string | null
   description: string | null
   publicationHistory: string | null
-  provenanceText: string | null
   artworkUrl: string
 }
 
