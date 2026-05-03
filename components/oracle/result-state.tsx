@@ -24,6 +24,7 @@ interface Painting {
 interface MuseumInfo {
   source: string
   artworkId: string
+  artworkSignature?: string
   dateDisplay: string | null
   placeOfOrigin: string | null
   artistDisplay: string | null

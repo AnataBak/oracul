@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server"
-import { fetchArtworkFromMuseums, type MuseumArtwork } from "./museum-providers"
+import {
+  fetchArtworkFromMuseums,
+  getArtworkSignature,
+  type MuseumArtwork,
+} from "./museum-providers"
 
 export const runtime = "nodejs"
 
 const GEMINI_FAST_MODEL = "gemini-2.5-flash-lite"
 const RECENT_ARTWORK_LIMIT = 24
 const recentArtworkIds: string[] = []
+const recentArtworkSignatures: string[] = []
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -47,6 +52,29 @@ function rememberArtworkId(artworkId: string) {
   if (recentArtworkIds.length > RECENT_ARTWORK_LIMIT) {
     recentArtworkIds.length = RECENT_ARTWORK_LIMIT
   }
+}
+
+function rememberArtworkSignature(artwork: MuseumArtwork) {
+  recentArtworkSignatures.unshift(getArtworkSignature(artwork))
+
+  if (recentArtworkSignatures.length > RECENT_ARTWORK_LIMIT) {
+    recentArtworkSignatures.length = RECENT_ARTWORK_LIMIT
+  }
+}
+
+function sanitizeRecentValues(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 100)
 }
 
 async function requestGeminiText(prompt: string, temperature: number): Promise<string> {
@@ -131,6 +159,8 @@ export async function POST(request: Request) {
       userText?: unknown
       text?: unknown
       emotion?: unknown
+      recentArtworkIds?: unknown
+      recentArtworkSignatures?: unknown
     }
 
     const userText =
@@ -146,9 +176,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "userText is required" }, { status: 400 })
     }
 
+    const clientRecentArtworkIds = sanitizeRecentValues(body.recentArtworkIds)
+    const clientRecentArtworkSignatures = sanitizeRecentValues(body.recentArtworkSignatures)
     const searchKeywords = await buildKeywordCandidates(userText)
-    const artwork = await fetchArtworkFromMuseums(searchKeywords, recentArtworkIds)
+    const artwork = await fetchArtworkFromMuseums(searchKeywords, {
+      recentArtworkIds: Array.from(new Set([...clientRecentArtworkIds, ...recentArtworkIds])),
+      recentArtworkSignatures: Array.from(
+        new Set([...clientRecentArtworkSignatures, ...recentArtworkSignatures]),
+      ),
+    })
     rememberArtworkId(artwork.id)
+    rememberArtworkSignature(artwork)
 
     const therapistText = await requestGeminiTherapistText(userText, artwork)
 
@@ -162,6 +200,7 @@ export async function POST(request: Request) {
       museumInfo: {
         source: artwork.source,
         artworkId: artwork.id,
+        artworkSignature: getArtworkSignature(artwork),
         dateDisplay: artwork.dateDisplay,
         placeOfOrigin: artwork.placeOfOrigin,
         artistDisplay: artwork.artistDisplay,
