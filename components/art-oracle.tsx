@@ -19,6 +19,8 @@ type ArtOracleResponse = {
   artist: string
   year?: string
   therapistText: string
+  matchReasons?: string[]
+  searchKeywords?: string[]
   museumInfo: {
     source: string
     artworkId: string
@@ -48,6 +50,8 @@ type OracleResult = {
     fallbackImageUrl?: string
   }
   comment: string
+  matchReasons: string[]
+  searchKeywords: string[]
   museumInfo: ArtOracleResponse["museumInfo"]
 }
 
@@ -103,6 +107,7 @@ export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
   const [isVisible, setIsVisible] = useState(false)
+  const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
 
   useEffect(() => {
@@ -110,51 +115,56 @@ export function ArtOracle() {
     return () => clearTimeout(timer)
   }, [])
 
+  const requestArtwork = async (text: string, searchKeywords?: string[]): Promise<OracleResult> => {
+    const recentArtworkMemory = readRecentArtworkMemory()
+    const response = await fetch("/api/art", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userText: text,
+        recentArtworkIds: recentArtworkMemory.ids,
+        recentArtworkSignatures: recentArtworkMemory.signatures,
+        searchKeywords,
+      }),
+    })
+
+    const data = (await response.json()) as Partial<ArtOracleResponse> & {
+      error?: string
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Не удалось получить ответ от сервера")
+    }
+
+    if (!data.imageUrl || !data.title || !data.artist || !data.therapistText || !data.museumInfo) {
+      throw new Error("Сервер вернул неполный ответ")
+    }
+
+    rememberRecentArtwork(data.museumInfo.artworkId, data.museumInfo.artworkSignature)
+
+    return {
+      painting: {
+        title: data.title,
+        artist: data.artist,
+        year: data.year || "",
+        imageUrl: data.imageUrl,
+        fallbackImageUrl: data.fallbackImageUrl || "",
+      },
+      comment: data.therapistText,
+      matchReasons: data.matchReasons || [],
+      searchKeywords: data.searchKeywords || searchKeywords || [],
+      museumInfo: data.museumInfo,
+    }
+  }
+
   const handleSubmit = async () => {
     if (!userText.trim()) return
 
     setStatus("loading")
-
     try {
-      const recentArtworkMemory = readRecentArtworkMemory()
-      const response = await fetch("/api/art", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userText,
-          recentArtworkIds: recentArtworkMemory.ids,
-          recentArtworkSignatures: recentArtworkMemory.signatures,
-        }),
-      })
-
-      const data = (await response.json()) as Partial<ArtOracleResponse> & {
-        error?: string
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "Не удалось получить ответ от сервера")
-      }
-
-      if (!data.imageUrl || !data.title || !data.artist || !data.therapistText || !data.museumInfo) {
-        throw new Error("Сервер вернул неполный ответ")
-      }
-
-      rememberRecentArtwork(data.museumInfo.artworkId, data.museumInfo.artworkSignature)
-
-      setResult({
-        painting: {
-          title: data.title,
-          artist: data.artist,
-          year: data.year || "",
-          imageUrl: data.imageUrl,
-          fallbackImageUrl: data.fallbackImageUrl || "",
-        },
-        comment: data.therapistText,
-        museumInfo: data.museumInfo,
-      })
-
+      setResult(await requestArtwork(userText))
       setStatus("result")
     } catch (error) {
       console.error("Art Oracle request failed:", error)
@@ -164,6 +174,25 @@ export function ArtOracle() {
           ? error.message
           : "Что-то пошло не так. Попробуй еще раз.",
       )
+    }
+  }
+
+  const handleRefreshSameMood = async () => {
+    if (!userText.trim() || isRefreshingSameMood) return
+
+    setIsRefreshingSameMood(true)
+
+    try {
+      setResult(await requestArtwork(userText, result?.searchKeywords))
+    } catch (error) {
+      console.error("Same mood refresh failed:", error)
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Не удалось подобрать другую картину. Попробуй еще раз.",
+      )
+    } finally {
+      setIsRefreshingSameMood(false)
     }
   }
 
@@ -215,8 +244,11 @@ export function ArtOracle() {
             <ResultState
               painting={result.painting}
               comment={result.comment}
+              matchReasons={result.matchReasons}
+              isRefreshing={isRefreshingSameMood}
               museumInfo={result.museumInfo}
               onReset={handleReset}
+              onRefreshSameMood={handleRefreshSameMood}
             />
           )}
         </div>

@@ -43,8 +43,11 @@ interface MuseumInfo {
 interface ResultStateProps {
   painting: Painting
   comment: string
+  matchReasons: string[]
+  isRefreshing?: boolean
   museumInfo: MuseumInfo
   onReset: () => void
+  onRefreshSameMood: () => void
 }
 
 function InfoSection({
@@ -80,7 +83,15 @@ function ListSection({
   return <InfoSection title={title} value={values.join(", ")} />
 }
 
-export function ResultState({ painting, comment, museumInfo, onReset }: ResultStateProps) {
+export function ResultState({
+  painting,
+  comment,
+  matchReasons,
+  isRefreshing = false,
+  museumInfo,
+  onReset,
+  onRefreshSameMood,
+}: ResultStateProps) {
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [hasImageError, setHasImageError] = useState(false)
@@ -329,17 +340,43 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
               ) : null}
             </p>
           </div>
+
+          {matchReasons.length > 0 ? (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <p className="mb-4 text-sm uppercase tracking-wider text-muted-foreground">
+                Почему эта картина
+              </p>
+              <ul className="space-y-3">
+                {matchReasons.map((reason) => (
+                  <li key={reason} className="flex gap-3 text-sm leading-relaxed text-foreground">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <span>{reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="mt-10 flex justify-center opacity-100 transition-all duration-500 delay-1000 md:mt-14">
+      <div className="mt-10 flex flex-col items-center justify-center gap-3 opacity-100 transition-all duration-500 delay-1000 sm:flex-row md:mt-14">
         <Button
-          onClick={onReset}
+          onClick={onRefreshSameMood}
+          disabled={isRefreshing}
           variant="outline"
           size="lg"
           className="gap-2 rounded-full border-primary/30 px-8 transition-all duration-300 hover:border-primary hover:bg-primary/10"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          {isRefreshing ? "Ищу другую..." : "Другая в том же настроении"}
+        </Button>
+
+        <Button
+          onClick={onReset}
+          variant="ghost"
+          size="lg"
+          className="gap-2 rounded-full px-8 text-muted-foreground transition-all duration-300 hover:text-foreground"
+        >
           Попробовать с другим настроением
         </Button>
       </div>
