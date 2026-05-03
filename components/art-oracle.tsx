@@ -18,7 +18,7 @@ type ArtOracleResponse = {
   therapistText: string
   museumInfo: {
     source: string
-    artworkId: number
+    artworkId: string
     dateDisplay: string | null
     placeOfOrigin: string | null
     artistDisplay: string | null
