@@ -32,6 +32,11 @@ export type MuseumProvider = {
   search: (keyword: string, recentArtworkIds: string[]) => Promise<MuseumArtwork[]>
 }
 
+export type MuseumSearchContext = {
+  recentArtworkIds: string[]
+  recentArtworkSignatures: string[]
+}
+
 type ArtInstituteArtwork = {
   id: number
   title: string
@@ -356,6 +361,20 @@ function isRecent(artworkId: string, recentArtworkIds: string[]): boolean {
   return recentArtworkIds.includes(artworkId)
 }
 
+function normalizeArtworkSignaturePart(value: string | null | undefined): string {
+  return normalizeSearchText(value)
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ")
+}
+
+export function getArtworkSignature(artwork: MuseumArtwork): string {
+  return `${normalizeArtworkSignaturePart(artwork.title)}|${normalizeArtworkSignaturePart(artwork.artist)}`
+}
+
+function hasRecentSignature(artwork: MuseumArtwork, recentArtworkSignatures: string[]): boolean {
+  return recentArtworkSignatures.includes(getArtworkSignature(artwork))
+}
+
 function normalizeSearchText(value: string | null | undefined): string {
   return value?.toLowerCase().trim() || ""
 }
@@ -435,7 +454,31 @@ function hasPreferredArtType(artwork: MuseumArtwork): boolean {
   return preferredTerms.some((term) => text.includes(term))
 }
 
-function artworkQualityScore(artwork: MuseumArtwork): number {
+function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.artist,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+
+  return searchKeywords.reduce((score, keyword) => {
+    const normalizedKeyword = normalizeSearchText(keyword)
+
+    if (!normalizedKeyword || normalizedKeyword.length < 3) {
+      return score
+    }
+
+    return text.includes(normalizedKeyword) ? score + 2 : score
+  }, 0)
+}
+
+function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
   let score = 0
 
   if (!hasWeakTitle(artwork.title)) {
@@ -474,19 +517,49 @@ function artworkQualityScore(artwork: MuseumArtwork): number {
     score -= 8
   }
 
+  score += getKeywordRelevanceScore(artwork, searchKeywords)
+
   return score
 }
 
-function selectBestArtwork(candidates: MuseumArtwork[]): MuseumArtwork | null {
-  const ranked = candidates
+function selectArtworkFromTopCandidates(
+  candidates: MuseumArtwork[],
+  searchKeywords: string[],
+  recentArtworkSignatures: string[],
+): MuseumArtwork | null {
+  const seenSignatures = new Set<string>()
+  const uniqueCandidates = candidates.filter((artwork) => {
+    const signature = getArtworkSignature(artwork)
+
+    if (seenSignatures.has(signature)) {
+      return false
+    }
+
+    seenSignatures.add(signature)
+    return true
+  })
+  const ranked = uniqueCandidates
+    .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork),
+      score: artworkQualityScore(artwork, searchKeywords),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
+  const fallbackRanked = uniqueCandidates
+    .map((artwork) => ({
+      artwork,
+      score: artworkQualityScore(artwork, searchKeywords),
+      random: Math.random(),
+    }))
+    .sort((left, right) => right.score - left.score || right.random - left.random)
+  const topCandidates = ranked.filter((item) => item.score >= 4).slice(0, 12)
 
-  return ranked.find((item) => item.score >= 4)?.artwork || ranked[0]?.artwork || null
+  if (topCandidates.length > 0) {
+    return shuffleArray(topCandidates)[0]?.artwork || null
+  }
+
+  return ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
 }
 
 function getEnglishNotation(items: LinkedArtNotation[] | undefined): string | null {
@@ -1096,15 +1169,37 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
 
 export async function fetchArtworkFromMuseums(
   searchKeywords: string[],
-  recentArtworkIds: string[],
+  searchContext: MuseumSearchContext,
 ): Promise<MuseumArtwork> {
   const keywords = Array.from(new Set([...searchKeywords, "abstract", "dream", "memory", "light", "portrait"]))
+  const providerResults = await Promise.all(
+    keywords.slice(0, 6).flatMap((keyword) =>
+      shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
+        try {
+          return await provider.search(keyword, searchContext.recentArtworkIds)
+        } catch (error) {
+          console.warn(`${provider.name} search failed:`, error)
+          return []
+        }
+      }),
+    ),
+  )
+  const pooledArtwork = providerResults.flat()
+  const pooledSelection = selectArtworkFromTopCandidates(
+    pooledArtwork,
+    searchKeywords,
+    searchContext.recentArtworkSignatures,
+  )
+
+  if (pooledSelection) {
+    return pooledSelection
+  }
 
   for (const keyword of shuffleArray(keywords)) {
     const providerResults = await Promise.all(
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
         try {
-          return await provider.search(keyword, recentArtworkIds)
+          return await provider.search(keyword, searchContext.recentArtworkIds)
         } catch (error) {
           console.warn(`${provider.name} search failed:`, error)
           return []
@@ -1112,7 +1207,11 @@ export async function fetchArtworkFromMuseums(
       }),
     )
     const candidates = providerResults.flat()
-    const bestArtwork = selectBestArtwork(candidates)
+    const bestArtwork = selectArtworkFromTopCandidates(
+      candidates,
+      searchKeywords,
+      searchContext.recentArtworkSignatures,
+    )
 
     if (bestArtwork) {
       return bestArtwork

@@ -9,6 +9,9 @@ import { ResultState } from "./oracle/result-state"
 
 export type OracleStatus = "input" | "loading" | "result"
 
+const RECENT_ARTWORK_STORAGE_KEY = "art-oracle-recent-artworks"
+const RECENT_ARTWORK_LIMIT = 100
+
 type ArtOracleResponse = {
   imageUrl: string
   fallbackImageUrl?: string
@@ -19,6 +22,7 @@ type ArtOracleResponse = {
   museumInfo: {
     source: string
     artworkId: string
+    artworkSignature?: string
     dateDisplay: string | null
     placeOfOrigin: string | null
     artistDisplay: string | null
@@ -47,6 +51,54 @@ type OracleResult = {
   museumInfo: ArtOracleResponse["museumInfo"]
 }
 
+type RecentArtworkMemory = {
+  ids: string[]
+  signatures: string[]
+}
+
+function readRecentArtworkMemory(): RecentArtworkMemory {
+  if (typeof window === "undefined") {
+    return { ids: [], signatures: [] }
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(RECENT_ARTWORK_STORAGE_KEY)
+
+    if (!rawValue) {
+      return { ids: [], signatures: [] }
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Partial<RecentArtworkMemory>
+
+    return {
+      ids: Array.isArray(parsedValue.ids)
+        ? parsedValue.ids.filter((item): item is string => typeof item === "string")
+        : [],
+      signatures: Array.isArray(parsedValue.signatures)
+        ? parsedValue.signatures.filter((item): item is string => typeof item === "string")
+        : [],
+    }
+  } catch {
+    return { ids: [], signatures: [] }
+  }
+}
+
+function rememberRecentArtwork(artworkId: string, artworkSignature?: string) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const currentMemory = readRecentArtworkMemory()
+  const nextMemory: RecentArtworkMemory = {
+    ids: Array.from(new Set([artworkId, ...currentMemory.ids])).slice(0, RECENT_ARTWORK_LIMIT),
+    signatures: Array.from(
+      new Set([artworkSignature, ...currentMemory.signatures].filter((item): item is string => Boolean(item))),
+    ).slice(0, RECENT_ARTWORK_LIMIT),
+  }
+
+  window.localStorage.setItem(RECENT_ARTWORK_STORAGE_KEY, JSON.stringify(nextMemory))
+}
+
 export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
@@ -64,12 +116,17 @@ export function ArtOracle() {
     setStatus("loading")
 
     try {
+      const recentArtworkMemory = readRecentArtworkMemory()
       const response = await fetch("/api/art", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userText }),
+        body: JSON.stringify({
+          userText,
+          recentArtworkIds: recentArtworkMemory.ids,
+          recentArtworkSignatures: recentArtworkMemory.signatures,
+        }),
       })
 
       const data = (await response.json()) as Partial<ArtOracleResponse> & {
@@ -83,6 +140,8 @@ export function ArtOracle() {
       if (!data.imageUrl || !data.title || !data.artist || !data.therapistText || !data.museumInfo) {
         throw new Error("Сервер вернул неполный ответ")
       }
+
+      rememberRecentArtwork(data.museumInfo.artworkId, data.museumInfo.artworkSignature)
 
       setResult({
         painting: {
