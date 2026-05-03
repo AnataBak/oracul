@@ -559,7 +559,7 @@ function selectArtworkFromTopCandidates(
     return shuffleArray(topCandidates)[0]?.artwork || null
   }
 
-  return fallbackRanked[0]?.artwork || null
+  return ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
 }
 
 function getEnglishNotation(items: LinkedArtNotation[] | undefined): string | null {
