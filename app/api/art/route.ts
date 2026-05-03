@@ -27,6 +27,9 @@ type ArtworkResponseText = {
   matchReasons: string[]
 }
 
+const ARTWORK_RESPONSE_FALLBACK_TEXT =
+  "Эта работа может стать спокойной точкой внимания для твоего состояния. В ней можно искать личную ассоциацию, не требуя от себя точного ответа сразу."
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message
@@ -163,7 +166,7 @@ function parseArtworkResponseText(rawText: string): ArtworkResponseText {
   }
 
   return {
-    therapistText: rawText,
+    therapistText: cleanedText && !cleanedText.startsWith("{") ? cleanedText : ARTWORK_RESPONSE_FALLBACK_TEXT,
     matchReasons: [],
   }
 }

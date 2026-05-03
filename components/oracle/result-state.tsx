@@ -122,6 +122,7 @@ export function ResultState({
     setCurrentImageUrl(painting.imageUrl)
     setIsImageLoaded(false)
     setHasImageError(false)
+    setIsLiked(false)
   }, [painting.imageUrl])
 
   useEffect(() => {
