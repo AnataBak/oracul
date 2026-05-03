@@ -356,6 +356,139 @@ function isRecent(artworkId: string, recentArtworkIds: string[]): boolean {
   return recentArtworkIds.includes(artworkId)
 }
 
+function normalizeSearchText(value: string | null | undefined): string {
+  return value?.toLowerCase().trim() || ""
+}
+
+function textLength(value: string | null | undefined): number {
+  return typeof value === "string" ? value.trim().length : 0
+}
+
+function isUnknownArtist(value: string | null | undefined): boolean {
+  const normalized = normalizeSearchText(value)
+
+  return !normalized || normalized.includes("unknown") || normalized.includes("anonymous") || normalized.includes("неизвест")
+}
+
+function hasWeakTitle(value: string): boolean {
+  const normalized = normalizeSearchText(value)
+
+  return (
+    !normalized ||
+    normalized === "untitled" ||
+    normalized === "без названия" ||
+    /^[a-z]{1,4}[-\s]?\d/i.test(value) ||
+    /^[A-Z]{1,4}-\d/.test(value)
+  )
+}
+
+function hasPoorTherapeuticFit(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const weakTerms = [
+    "fragment",
+    "fragments",
+    "plaster cast",
+    "cast",
+    "mold",
+    "model",
+    "study cast",
+    "sample",
+    "specimen",
+    "tile",
+    "shard",
+    "sherd",
+    "potsherd",
+    "stone fragment",
+    "architectural fragment",
+    "reproduction",
+    "facsimile",
+  ]
+
+  return weakTerms.some((term) => text.includes(term))
+}
+
+function hasPreferredArtType(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay, artwork.source].join(" "))
+  const preferredTerms = [
+    "painting",
+    "drawing",
+    "print",
+    "photograph",
+    "sculpture",
+    "watercolor",
+    "engraving",
+    "etching",
+    "lithograph",
+    "woodcut",
+    "album",
+  ]
+
+  return preferredTerms.some((term) => text.includes(term))
+}
+
+function artworkQualityScore(artwork: MuseumArtwork): number {
+  let score = 0
+
+  if (!hasWeakTitle(artwork.title)) {
+    score += 3
+  }
+
+  if (!isUnknownArtist(artwork.artist)) {
+    score += 2
+  }
+
+  if (textLength(artwork.shortDescription) >= 80) {
+    score += 4
+  }
+
+  if (textLength(artwork.description) >= 80) {
+    score += 4
+  }
+
+  if (artwork.subjectTitles.length > 0) {
+    score += 2
+  }
+
+  if (artwork.dateDisplay || artwork.year) {
+    score += 1
+  }
+
+  if (artwork.placeOfOrigin) {
+    score += 1
+  }
+
+  if (hasPreferredArtType(artwork)) {
+    score += 3
+  }
+
+  if (hasPoorTherapeuticFit(artwork)) {
+    score -= 8
+  }
+
+  return score
+}
+
+function selectBestArtwork(candidates: MuseumArtwork[]): MuseumArtwork | null {
+  const ranked = candidates
+    .map((artwork) => ({
+      artwork,
+      score: artworkQualityScore(artwork),
+      random: Math.random(),
+    }))
+    .sort((left, right) => right.score - left.score || right.random - left.random)
+
+  return ranked.find((item) => item.score >= 4)?.artwork || ranked[0]?.artwork || null
+}
+
 function getEnglishNotation(items: LinkedArtNotation[] | undefined): string | null {
   if (!Array.isArray(items)) {
     return null
@@ -978,10 +1111,11 @@ export async function fetchArtworkFromMuseums(
         }
       }),
     )
-    const candidates = shuffleArray(providerResults.flat())
+    const candidates = providerResults.flat()
+    const bestArtwork = selectBestArtwork(candidates)
 
-    if (candidates[0]) {
-      return candidates[0]
+    if (bestArtwork) {
+      return bestArtwork
     }
   }
 
