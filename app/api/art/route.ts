@@ -4,23 +4,13 @@ import {
   getArtworkSignature,
   type MuseumArtwork,
 } from "./museum-providers"
+import { requestGeminiText } from "../gemini"
 
 export const runtime = "nodejs"
 
-const GEMINI_FAST_MODEL = "gemini-2.5-flash-lite"
 const RECENT_ARTWORK_LIMIT = 24
 const recentArtworkIds: string[] = []
 const recentArtworkSignatures: string[] = []
-
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string
-      }>
-    }
-  }>
-}
 
 type ArtworkResponseText = {
   therapistText: string
@@ -38,20 +28,11 @@ function getErrorMessage(error: unknown): string {
   return "Unknown error"
 }
 
-function buildGeminiUrl(model: string): string {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`
-}
-
 function extractEnglishKeywords(rawKeywords: string): string[] {
   const matches = rawKeywords.toLowerCase().match(/[a-z]+(?:-[a-z]+)?/g) ?? []
   const uniqueKeywords = Array.from(new Set(matches.map((item) => item.trim()).filter(Boolean)))
 
   return uniqueKeywords.slice(0, 3)
-}
-
-async function readErrorBody(response: Response): Promise<string> {
-  const text = await response.text()
-  return text || `Request failed with status ${response.status}`
 }
 
 function rememberArtworkId(artworkId: string) {
@@ -98,39 +79,6 @@ function sanitizeSearchKeywords(value: unknown): string[] {
         .filter((item) => item.length >= 3),
     ),
   ).slice(0, 10)
-}
-
-async function requestGeminiText(prompt: string, temperature: number): Promise<string> {
-  const response = await fetch(buildGeminiUrl(GEMINI_FAST_MODEL), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature,
-      },
-    }),
-    cache: "no-store",
-  })
-
-  if (!response.ok) {
-    throw new Error(`Gemini request failed: ${await readErrorBody(response)}`)
-  }
-
-  const data = (await response.json()) as GeminiResponse
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-
-  if (!content) {
-    throw new Error("Gemini returned an empty response")
-  }
-
-  return content
 }
 
 function parseArtworkResponseText(rawText: string): ArtworkResponseText {
