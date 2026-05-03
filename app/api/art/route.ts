@@ -171,12 +171,9 @@ export async function POST(request: Request) {
         mediumDisplay: artwork.mediumDisplay,
         dimensions: artwork.dimensions,
         creditLine: artwork.creditLine,
-        mainReferenceNumber: artwork.mainReferenceNumber,
-        exhibitionHistory: artwork.exhibitionHistory,
         shortDescription: artwork.shortDescription,
         description: artwork.description,
         publicationHistory: artwork.publicationHistory,
-        provenanceText: artwork.provenanceText,
         artworkUrl: artwork.artworkUrl,
       },
     })

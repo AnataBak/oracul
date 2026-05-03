@@ -15,7 +15,6 @@ type MuseumInfoPayload = {
   shortDescription: string | null
   description: string | null
   publicationHistory: string | null
-  provenanceText: string | null
   artworkUrl: string
 }
 

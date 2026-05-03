@@ -33,12 +33,9 @@ interface MuseumInfo {
   mediumDisplay: string | null
   dimensions: string | null
   creditLine: string | null
-  mainReferenceNumber: string | null
-  exhibitionHistory: string | null
   shortDescription: string | null
   description: string | null
   publicationHistory: string | null
-  provenanceText: string | null
   artworkUrl: string
 }
 
@@ -281,10 +278,7 @@ export function ResultState({ painting, comment, museumInfo, onReset }: ResultSt
                       <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
                       <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
                       <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
-                      <InfoSection title="Инвентарный номер" value={displayMuseumInfo.mainReferenceNumber} />
-                      <InfoSection title="История выставок" value={displayMuseumInfo.exhibitionHistory} />
                       <InfoSection title="История публикаций" value={displayMuseumInfo.publicationHistory} />
-                      <InfoSection title="Провенанс" value={displayMuseumInfo.provenanceText} />
 
                       <a
                         href={displayMuseumInfo.artworkUrl}
