@@ -9,6 +9,7 @@ import {
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
+import { ErrorNotice } from "./oracle/error-notice"
 import { InputState } from "./oracle/input-state"
 import { LoadingState } from "./oracle/loading-state"
 import { ResultState } from "./oracle/result-state"
@@ -20,6 +21,11 @@ const ORACLE_VOICE_STORAGE_KEY = "art-oracle-voice"
 const VISUAL_ANALYSIS_STORAGE_KEY = "art-oracle-visual-analysis"
 const SELECTION_STRICTNESS_STORAGE_KEY = "art-oracle-selection-strictness"
 const RECENT_ARTWORK_LIMIT = 100
+
+type UiError = {
+  title: string
+  message: string
+}
 
 type ArtOracleResponse = {
   imageUrl: string
@@ -159,6 +165,7 @@ export function ArtOracle() {
   const [isVisible, setIsVisible] = useState(false)
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
+  const [uiError, setUiError] = useState<UiError | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100)
@@ -173,6 +180,7 @@ export function ArtOracle() {
 
   const handleVoiceChange = (voice: OracleVoice) => {
     setSelectedVoice(voice)
+    setUiError(null)
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ORACLE_VOICE_STORAGE_KEY, voice)
@@ -181,6 +189,7 @@ export function ArtOracle() {
 
   const handleVisualAnalysisChange = (enabled: boolean) => {
     setVisualAnalysisEnabled(enabled)
+    setUiError(null)
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(VISUAL_ANALYSIS_STORAGE_KEY, String(enabled))
@@ -189,6 +198,7 @@ export function ArtOracle() {
 
   const handleSelectionStrictnessChange = (strictness: ArtworkSelectionStrictness) => {
     setSelectionStrictness(strictness)
+    setUiError(null)
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(SELECTION_STRICTNESS_STORAGE_KEY, strictness)
@@ -248,6 +258,7 @@ export function ArtOracle() {
   const handleSubmit = async () => {
     if (!userText.trim()) return
 
+    setUiError(null)
     setStatus("loading")
     try {
       setResult(await requestArtwork(userText))
@@ -255,28 +266,33 @@ export function ArtOracle() {
     } catch (error) {
       console.error("Art Oracle request failed:", error)
       setStatus("input")
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "Что-то пошло не так. Попробуй еще раз.",
-      )
+      setUiError({
+        title: "Не удалось подобрать картину",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Что-то пошло не так. Попробуй ещё раз.",
+      })
     }
   }
 
   const handleRefreshSameMood = async () => {
     if (!userText.trim() || isRefreshingSameMood) return
 
+    setUiError(null)
     setIsRefreshingSameMood(true)
 
     try {
       setResult(await requestArtwork(userText, result?.searchKeywords))
     } catch (error) {
       console.error("Same mood refresh failed:", error)
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : "Не удалось подобрать другую картину. Попробуй еще раз.",
-      )
+      setUiError({
+        title: "Не удалось найти другую картину",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Попробуй ещё раз — иногда музейные API отвечают не сразу.",
+      })
     } finally {
       setIsRefreshingSameMood(false)
     }
@@ -286,6 +302,7 @@ export function ArtOracle() {
     setStatus("input")
     setUserText("")
     setResult(null)
+    setUiError(null)
   }
 
   return (
@@ -317,34 +334,59 @@ export function ArtOracle() {
           }`}
         >
           {status === "input" && (
-            <InputState
-              value={userText}
-              selectedVoice={selectedVoice}
-              visualAnalysisEnabled={visualAnalysisEnabled}
-              selectionStrictness={selectionStrictness}
-              onChange={setUserText}
-              onVoiceChange={handleVoiceChange}
-              onVisualAnalysisChange={handleVisualAnalysisChange}
-              onSelectionStrictnessChange={handleSelectionStrictnessChange}
-              onSubmit={handleSubmit}
-            />
+            <div className="space-y-5">
+              {uiError ? (
+                <div className="mx-auto max-w-2xl">
+                  <ErrorNotice
+                    title={uiError.title}
+                    message={uiError.message}
+                    onDismiss={() => setUiError(null)}
+                  />
+                </div>
+              ) : null}
+
+              <InputState
+                value={userText}
+                selectedVoice={selectedVoice}
+                visualAnalysisEnabled={visualAnalysisEnabled}
+                selectionStrictness={selectionStrictness}
+                onChange={(nextValue) => {
+                  setUserText(nextValue)
+                  setUiError(null)
+                }}
+                onVoiceChange={handleVoiceChange}
+                onVisualAnalysisChange={handleVisualAnalysisChange}
+                onSelectionStrictnessChange={handleSelectionStrictnessChange}
+                onSubmit={handleSubmit}
+              />
+            </div>
           )}
 
           {status === "loading" && <LoadingState />}
 
           {status === "result" && result && (
-            <ResultState
-              painting={result.painting}
-              comment={result.comment}
-              voice={result.voice}
-              isRefreshing={isRefreshingSameMood}
-              museumInfo={result.museumInfo}
-              visualAnalysisRequested={result.visualAnalysisRequested}
-              visualAnalysisUsed={result.visualAnalysisUsed}
-              searchKeywords={result.searchKeywords}
-              onReset={handleReset}
-              onRefreshSameMood={handleRefreshSameMood}
-            />
+            <div className="space-y-5">
+              {uiError ? (
+                <ErrorNotice
+                  title={uiError.title}
+                  message={uiError.message}
+                  onDismiss={() => setUiError(null)}
+                />
+              ) : null}
+
+              <ResultState
+                painting={result.painting}
+                comment={result.comment}
+                voice={result.voice}
+                isRefreshing={isRefreshingSameMood}
+                museumInfo={result.museumInfo}
+                visualAnalysisRequested={result.visualAnalysisRequested}
+                visualAnalysisUsed={result.visualAnalysisUsed}
+                searchKeywords={result.searchKeywords}
+                onReset={handleReset}
+                onRefreshSameMood={handleRefreshSameMood}
+              />
+            </div>
           )}
         </div>
       </div>
