@@ -1,3 +1,5 @@
+import type { ArtworkSelectionStrictness } from "@/lib/artwork-selection-strictness"
+
 const SEARCH_PAGE_SIZE = 24
 const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
 
@@ -491,8 +493,36 @@ function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string
   }, 0)
 }
 
-function hasStrongKeywordRelevance(artwork: MuseumArtwork, searchKeywords: string[]): boolean {
-  return getKeywordRelevanceScore(artwork, searchKeywords) >= 5
+function getStrongKeywordRelevanceThreshold(strictness: ArtworkSelectionStrictness): number {
+  if (strictness === "literal") {
+    return 8
+  }
+
+  if (strictness === "precise") {
+    return 7
+  }
+
+  if (strictness === "soft") {
+    return 3
+  }
+
+  return 5
+}
+
+function getTopCandidateScoreThreshold(strictness: ArtworkSelectionStrictness): number {
+  if (strictness === "literal") {
+    return 12
+  }
+
+  if (strictness === "precise") {
+    return 10
+  }
+
+  if (strictness === "soft") {
+    return 6
+  }
+
+  return 8
 }
 
 function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
@@ -543,6 +573,7 @@ function selectArtworkFromTopCandidates(
   candidates: MuseumArtwork[],
   searchKeywords: string[],
   recentArtworkSignatures: string[],
+  strictness: ArtworkSelectionStrictness,
 ): MuseumArtwork | null {
   const seenSignatures = new Set<string>()
   const uniqueCandidates = candidates.filter((artwork) => {
@@ -570,11 +601,13 @@ function selectArtworkFromTopCandidates(
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
-  const stronglyRelevantCandidates = ranked.filter((item) =>
-    hasStrongKeywordRelevance(item.artwork, searchKeywords),
+  const relevanceThreshold = getStrongKeywordRelevanceThreshold(strictness)
+  const scoreThreshold = getTopCandidateScoreThreshold(strictness)
+  const stronglyRelevantCandidates = ranked.filter(
+    (item) => getKeywordRelevanceScore(item.artwork, searchKeywords) >= relevanceThreshold,
   )
   const topCandidates = stronglyRelevantCandidates
-    .filter((item) => item.score >= 8)
+    .filter((item) => item.score >= scoreThreshold)
     .slice(0, 10)
 
   if (topCandidates.length > 0) {
@@ -1198,8 +1231,13 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
 export async function fetchArtworkFromMuseums(
   searchKeywords: string[],
   searchContext: MuseumSearchContext,
+  strictness: ArtworkSelectionStrictness = "standard",
 ): Promise<MuseumArtwork> {
-  const keywords = Array.from(new Set([...searchKeywords, "still life", "landscape", "interior", "nature", "portrait"]))
+  const fallbackKeywords =
+    strictness === "literal" || strictness === "precise"
+      ? []
+      : ["still life", "landscape", "interior", "nature", "portrait"]
+  const keywords = Array.from(new Set([...searchKeywords, ...fallbackKeywords]))
   const providerResults = await Promise.all(
     keywords.slice(0, 6).flatMap((keyword) =>
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
@@ -1217,6 +1255,7 @@ export async function fetchArtworkFromMuseums(
     pooledArtwork,
     searchKeywords,
     searchContext.recentArtworkSignatures,
+    strictness,
   )
 
   if (pooledSelection) {
@@ -1239,6 +1278,7 @@ export async function fetchArtworkFromMuseums(
       candidates,
       searchKeywords,
       searchContext.recentArtworkSignatures,
+      strictness,
     )
 
     if (bestArtwork) {
