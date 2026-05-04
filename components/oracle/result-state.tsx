@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
+import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -43,6 +44,7 @@ interface MuseumInfo {
 interface ResultStateProps {
   painting: Painting
   comment: string
+  voice: OracleVoice
   isRefreshing?: boolean
   museumInfo: MuseumInfo
   onReset: () => void
@@ -85,11 +87,13 @@ function ListSection({
 export function ResultState({
   painting,
   comment,
+  voice,
   isRefreshing = false,
   museumInfo,
   onReset,
   onRefreshSameMood,
 }: ResultStateProps) {
+  const voiceOption = getOracleVoiceOption(voice)
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [hasImageError, setHasImageError] = useState(false)
@@ -329,9 +333,15 @@ export function ResultState({
 
         <div className="space-y-6 opacity-100 transition-all duration-500 delay-500">
           <div className="rounded-xl border border-border bg-card p-6 md:p-8">
-            <p className="mb-4 text-sm uppercase tracking-wider text-muted-foreground">
-              Послание оракула
-            </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">
+                Послание оракула
+              </p>
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <span aria-hidden="true">{voiceOption.icon}</span>
+                {voiceOption.label}
+              </span>
+            </div>
             <p className="whitespace-pre-line text-base leading-relaxed text-foreground md:text-lg">
               {displayedText}
               {displayedText.length < comment.length ? (
