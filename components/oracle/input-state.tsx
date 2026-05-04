@@ -1,17 +1,13 @@
 "use client"
 
-import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2 } from "lucide-react"
+import { useState } from "react"
+import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import {
   ARTWORK_SELECTION_STRICTNESS_OPTIONS,
   getArtworkSelectionStrictnessOption,
@@ -31,6 +27,52 @@ interface InputStateProps {
   onSubmit: () => void
 }
 
+function HelpButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+      aria-label={label}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+    >
+      <HelpCircle className="h-4 w-4" />
+    </button>
+  )
+}
+
+function HelpPanel({
+  text,
+  onClose,
+}: {
+  text: string
+  onClose: () => void
+}) {
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-sm leading-relaxed text-muted-foreground">
+      <div className="flex items-start justify-between gap-3">
+        <p>{text}</p>
+        <button
+          type="button"
+          className="-mr-1 -mt-1 rounded-full p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+          aria-label="Закрыть подсказку"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function InputState({
   value,
   selectedVoice,
@@ -45,6 +87,11 @@ export function InputState({
   const selectedVoiceOption =
     ORACLE_VOICE_OPTIONS.find((voice) => voice.id === selectedVoice) || ORACLE_VOICE_OPTIONS[0]
   const selectedStrictnessOption = getArtworkSelectionStrictnessOption(selectionStrictness)
+  const [openSettingsHelpId, setOpenSettingsHelpId] = useState<string | null>(null)
+  const [isEyeHelpOpen, setIsEyeHelpOpen] = useState(false)
+  const eyeHelpText = visualAnalysisEnabled
+    ? "Глаз открыт: Gemini получает изображение выбранной картины и сверяет его с музейным описанием."
+    : "Глаз закрыт: ответ строится только по музейной карточке, без передачи изображения в Gemini."
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.metaKey) {
@@ -101,30 +148,36 @@ export function InputState({
             </p>
             
             <div className="flex items-center justify-end gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
+              <Button
+                type="button"
+                variant={visualAnalysisEnabled ? "default" : "outline"}
+                size="icon"
+                aria-label={
+                  visualAnalysisEnabled
+                    ? "Выключить визуальный анализ"
+                    : "Включить визуальный анализ"
+                }
+                aria-pressed={visualAnalysisEnabled}
+                className="rounded-full"
+                onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+              >
+                {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
+
+              <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
+                <PopoverTrigger asChild>
+                  <button
                     type="button"
-                    variant={visualAnalysisEnabled ? "default" : "outline"}
-                    size="icon"
-                    aria-label={
-                      visualAnalysisEnabled
-                        ? "Выключить визуальный анализ"
-                        : "Включить визуальный анализ"
-                    }
-                    aria-pressed={visualAnalysisEnabled}
-                    className="rounded-full"
-                    onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+                    className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground"
+                    aria-label="Что значит глаз"
                   >
-                    {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-64 text-center">
-                  {visualAnalysisEnabled
-                    ? "Глаз открыт: Gemini посмотрит изображение картины."
-                    : "Глаз закрыт: ответ будет только по музейной карточке."}
-                </TooltipContent>
-              </Tooltip>
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 rounded-2xl border-border p-3">
+                  <HelpPanel text={eyeHelpText} onClose={() => setIsEyeHelpOpen(false)} />
+                </PopoverContent>
+              </Popover>
 
               <Popover>
                 <PopoverTrigger asChild>
@@ -152,40 +205,39 @@ export function InputState({
                       const isSelected = voice.id === selectedVoice
 
                       return (
-                        <div
-                          key={voice.id}
-                          className={`flex items-center gap-2 rounded-xl border p-1 transition-colors ${
-                            isSelected
-                              ? "border-primary/30 bg-primary/10"
-                              : "border-transparent hover:bg-primary/5"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => onVoiceChange(voice.id)}
-                            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
+                        <div key={voice.id} className="space-y-2">
+                          <div
+                            className={`flex items-center gap-2 rounded-xl border p-1 transition-colors ${
+                              isSelected
+                                ? "border-primary/30 bg-primary/10"
+                                : "border-transparent hover:bg-primary/5"
+                            }`}
                           >
-                            <span className="text-lg" aria-hidden="true">{voice.icon}</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium text-foreground">{voice.label}</span>
-                            </span>
-                            {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => onVoiceChange(voice.id)}
+                              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
+                            >
+                              <span className="text-lg" aria-hidden="true">{voice.icon}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-foreground">{voice.label}</span>
+                              </span>
+                              {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                            </button>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-                                aria-label={`Что значит ${voice.label}`}
-                              >
-                                <HelpCircle className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left" className="max-w-64">
-                              {voice.description}
-                            </TooltipContent>
-                          </Tooltip>
+                            <HelpButton
+                              label={`Что значит ${voice.label}`}
+                              onClick={() =>
+                                setOpenSettingsHelpId(openSettingsHelpId === voice.id ? null : voice.id)
+                              }
+                            />
+                          </div>
+                          {openSettingsHelpId === voice.id ? (
+                            <HelpPanel
+                              text={voice.description}
+                              onClose={() => setOpenSettingsHelpId(null)}
+                            />
+                          ) : null}
                         </div>
                       )
                     })}
@@ -205,27 +257,40 @@ export function InputState({
                       const isSelected = option.id === selectionStrictness
 
                       return (
-                        <Tooltip key={option.id}>
-                          <TooltipTrigger asChild>
+                        <div key={option.id} className="space-y-2">
+                          <div
+                            className={`flex items-center gap-1 rounded-xl border p-1 transition-colors ${
+                              isSelected
+                                ? "border-primary/30 bg-primary/10"
+                                : "border-border bg-background/40 hover:bg-primary/5"
+                            }`}
+                          >
                             <button
                               type="button"
                               onClick={() => onSelectionStrictnessChange(option.id)}
-                              className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-                                isSelected
-                                  ? "border-primary/30 bg-primary/10"
-                                  : "border-border bg-background/40 hover:bg-primary/5"
-                              }`}
+                              className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left"
                             >
                               <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                                 <span aria-hidden="true">{option.icon}</span>
                                 {option.label}
                               </span>
                             </button>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-64">
-                            {option.description}
-                          </TooltipContent>
-                        </Tooltip>
+                            <HelpButton
+                              label={`Что значит ${option.label}`}
+                              onClick={() =>
+                                setOpenSettingsHelpId(
+                                  openSettingsHelpId === option.id ? null : option.id,
+                                )
+                              }
+                            />
+                          </div>
+                          {openSettingsHelpId === option.id ? (
+                            <HelpPanel
+                              text={option.description}
+                              onClose={() => setOpenSettingsHelpId(null)}
+                            />
+                          ) : null}
+                        </div>
                       )
                     })}
                   </div>
