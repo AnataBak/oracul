@@ -375,8 +375,8 @@ function hasRecentSignature(artwork: MuseumArtwork, recentArtworkSignatures: str
   return recentArtworkSignatures.includes(getArtworkSignature(artwork))
 }
 
-function normalizeSearchText(value: string | null | undefined): string {
-  return value?.toLowerCase().trim() || ""
+function normalizeSearchText(value: string | number | boolean | null | undefined): string {
+  return typeof value === "string" ? value.toLowerCase().trim() : ""
 }
 
 function textLength(value: string | null | undefined): number {
@@ -455,18 +455,6 @@ function hasPreferredArtType(artwork: MuseumArtwork): boolean {
 }
 
 function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
-  const text = normalizeSearchText(
-    [
-      artwork.title,
-      artwork.artist,
-      artwork.classificationTitle,
-      artwork.mediumDisplay,
-      artwork.shortDescription,
-      artwork.description,
-      artwork.subjectTitles.join(" "),
-    ].join(" "),
-  )
-
   return searchKeywords.reduce((score, keyword) => {
     const normalizedKeyword = normalizeSearchText(keyword)
 
@@ -474,8 +462,36 @@ function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string
       return score
     }
 
-    return text.includes(normalizedKeyword) ? score + 2 : score
+    if (normalizeSearchText(artwork.title).includes(normalizedKeyword)) {
+      return score + 8
+    }
+
+    if (normalizeSearchText(artwork.subjectTitles.join(" ")).includes(normalizedKeyword)) {
+      return score + 7
+    }
+
+    if (normalizeSearchText(artwork.shortDescription || "").includes(normalizedKeyword)) {
+      return score + 5
+    }
+
+    if (normalizeSearchText(artwork.description || "").includes(normalizedKeyword)) {
+      return score + 4
+    }
+
+    if (
+      normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay].join(" ")).includes(
+        normalizedKeyword,
+      )
+    ) {
+      return score + 2
+    }
+
+    return score
   }, 0)
+}
+
+function hasStrongKeywordRelevance(artwork: MuseumArtwork, searchKeywords: string[]): boolean {
+  return getKeywordRelevanceScore(artwork, searchKeywords) >= 5
 }
 
 function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
@@ -553,13 +569,18 @@ function selectArtworkFromTopCandidates(
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
-  const topCandidates = ranked.filter((item) => item.score >= 4).slice(0, 12)
+  const stronglyRelevantCandidates = ranked.filter((item) =>
+    hasStrongKeywordRelevance(item.artwork, searchKeywords),
+  )
+  const topCandidates = stronglyRelevantCandidates
+    .filter((item) => item.score >= 8)
+    .slice(0, 10)
 
   if (topCandidates.length > 0) {
     return shuffleArray(topCandidates)[0]?.artwork || null
   }
 
-  return ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
+  return stronglyRelevantCandidates[0]?.artwork || ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
 }
 
 function getEnglishNotation(items: LinkedArtNotation[] | undefined): string | null {
@@ -1171,7 +1192,7 @@ export async function fetchArtworkFromMuseums(
   searchKeywords: string[],
   searchContext: MuseumSearchContext,
 ): Promise<MuseumArtwork> {
-  const keywords = Array.from(new Set([...searchKeywords, "abstract", "dream", "memory", "light", "portrait"]))
+  const keywords = Array.from(new Set([...searchKeywords, "still life", "landscape", "interior", "nature", "portrait"]))
   const providerResults = await Promise.all(
     keywords.slice(0, 6).flatMap((keyword) =>
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
