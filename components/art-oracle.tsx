@@ -12,6 +12,7 @@ export type OracleStatus = "input" | "loading" | "result"
 
 const RECENT_ARTWORK_STORAGE_KEY = "art-oracle-recent-artworks"
 const ORACLE_VOICE_STORAGE_KEY = "art-oracle-voice"
+const VISUAL_ANALYSIS_STORAGE_KEY = "art-oracle-visual-analysis"
 const RECENT_ARTWORK_LIMIT = 100
 
 type ArtOracleResponse = {
@@ -55,6 +56,7 @@ type OracleResult = {
   searchKeywords: string[]
   museumInfo: ArtOracleResponse["museumInfo"]
   voice: OracleVoice
+  visualAnalysisEnabled: boolean
 }
 
 type RecentArtworkMemory = {
@@ -115,10 +117,19 @@ function readSavedOracleVoice(): OracleVoice {
   return isOracleVoice(savedVoice) ? savedVoice : DEFAULT_ORACLE_VOICE
 }
 
+function readSavedVisualAnalysisEnabled(): boolean {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  return window.localStorage.getItem(VISUAL_ANALYSIS_STORAGE_KEY) === "true"
+}
+
 export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
   const [selectedVoice, setSelectedVoice] = useState<OracleVoice>(DEFAULT_ORACLE_VOICE)
+  const [visualAnalysisEnabled, setVisualAnalysisEnabled] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
@@ -130,6 +141,7 @@ export function ArtOracle() {
 
   useEffect(() => {
     setSelectedVoice(readSavedOracleVoice())
+    setVisualAnalysisEnabled(readSavedVisualAnalysisEnabled())
   }, [])
 
   const handleVoiceChange = (voice: OracleVoice) => {
@@ -137,6 +149,14 @@ export function ArtOracle() {
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(ORACLE_VOICE_STORAGE_KEY, voice)
+    }
+  }
+
+  const handleVisualAnalysisChange = (enabled: boolean) => {
+    setVisualAnalysisEnabled(enabled)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VISUAL_ANALYSIS_STORAGE_KEY, String(enabled))
     }
   }
 
@@ -153,6 +173,7 @@ export function ArtOracle() {
         recentArtworkSignatures: recentArtworkMemory.signatures,
         searchKeywords,
         oracleVoice: selectedVoice,
+        visualAnalysisEnabled,
       }),
     })
 
@@ -183,6 +204,7 @@ export function ArtOracle() {
       searchKeywords: data.searchKeywords || searchKeywords || [],
       museumInfo: data.museumInfo,
       voice: selectedVoice,
+      visualAnalysisEnabled,
     }
   }
 
@@ -261,8 +283,10 @@ export function ArtOracle() {
             <InputState
               value={userText}
               selectedVoice={selectedVoice}
+              visualAnalysisEnabled={visualAnalysisEnabled}
               onChange={setUserText}
               onVoiceChange={handleVoiceChange}
+              onVisualAnalysisChange={handleVisualAnalysisChange}
               onSubmit={handleSubmit}
             />
           )}

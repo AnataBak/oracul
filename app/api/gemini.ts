@@ -17,6 +17,11 @@ type GeminiResponse = {
   }>
 }
 
+export type GeminiInlineImage = {
+  mimeType: string
+  data: string
+}
+
 async function readErrorBody(response: Response): Promise<string> {
   const text = await response.text()
   return text || `Request failed with status ${response.status}`
@@ -53,8 +58,20 @@ async function requestGeminiModel(
   model: string,
   prompt: string,
   temperature: number,
+  image?: GeminiInlineImage,
 ): Promise<string> {
   let response: Response
+  const parts = image
+    ? [
+        {
+          inline_data: {
+            mime_type: image.mimeType,
+            data: image.data,
+          },
+        },
+        { text: prompt },
+      ]
+    : [{ text: prompt }]
 
   try {
     response = await fetch(buildGeminiUrl(model), {
@@ -65,7 +82,7 @@ async function requestGeminiModel(
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: prompt }],
+            parts,
           },
         ],
         generationConfig: {
@@ -105,14 +122,18 @@ async function requestGeminiModel(
   return content
 }
 
-export async function requestGeminiText(prompt: string, temperature: number): Promise<string> {
+export async function requestGeminiText(
+  prompt: string,
+  temperature: number,
+  image?: GeminiInlineImage,
+): Promise<string> {
   const failures: string[] = []
 
   for (let index = 0; index < GEMINI_MODEL_CHAIN.length; index += 1) {
     const model = GEMINI_MODEL_CHAIN[index]
 
     try {
-      return await requestGeminiModel(model, prompt, temperature)
+      return await requestGeminiModel(model, prompt, temperature, image)
     } catch (error) {
       if (!isGeminiFallbackError(error)) {
         throw error
