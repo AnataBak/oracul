@@ -1,22 +1,26 @@
 "use client"
 
-import { Palette, Send } from "lucide-react"
+import { Eye, EyeOff, Palette, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
 
 interface InputStateProps {
   value: string
   selectedVoice: OracleVoice
+  visualAnalysisEnabled: boolean
   onChange: (value: string) => void
   onVoiceChange: (value: OracleVoice) => void
+  onVisualAnalysisChange: (value: boolean) => void
   onSubmit: () => void
 }
 
 export function InputState({
   value,
   selectedVoice,
+  visualAnalysisEnabled,
   onChange,
   onVoiceChange,
+  onVisualAnalysisChange,
   onSubmit,
 }: InputStateProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -91,6 +95,30 @@ export function InputState({
               })}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+            className={`mt-4 flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200 ${
+              visualAnalysisEnabled
+                ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
+                : "border-border bg-background/40 hover:border-primary/30 hover:bg-primary/5"
+            }`}
+          >
+            <span className="mt-0.5 text-primary">
+              {visualAnalysisEnabled ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+            </span>
+            <span>
+              <span className="block text-sm font-medium text-foreground">
+                {visualAnalysisEnabled ? "Визуальный анализ включён" : "Визуальный анализ выключен"}
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                {visualAnalysisEnabled
+                  ? "Оракул посмотрит изображение картины и сверит его с музейным описанием."
+                  : "Оракул будет опираться только на музейную карточку, как раньше."}
+              </span>
+            </span>
+          </button>
           
           {/* Разделитель */}
           <div className="h-px bg-border my-4" />

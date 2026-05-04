@@ -4,12 +4,13 @@ import {
   getArtworkSignature,
   type MuseumArtwork,
 } from "./museum-providers"
-import { requestGeminiText } from "../gemini"
+import { requestGeminiText, type GeminiInlineImage } from "../gemini"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 
 export const runtime = "nodejs"
 
 const RECENT_ARTWORK_LIMIT = 24
+const MAX_VISUAL_ANALYSIS_IMAGE_BYTES = 2 * 1024 * 1024
 const recentArtworkIds: string[] = []
 const recentArtworkSignatures: string[] = []
 
@@ -119,6 +120,73 @@ function sanitizeSearchKeywords(value: unknown): string[] {
   )
 }
 
+function isVisualAnalysisEnabled(value: unknown): boolean {
+  return value === true
+}
+
+function getVisualAnalysisInstructions(): string {
+  return `
+
+Дополнительно тебе передано изображение выбранной работы. Используй его вместе с музейными фактами.
+- Музейные факты выше остаются главным источником для названия, автора, даты, материала и контекста.
+- По изображению можно описывать только то, что уверенно видно: общую композицию, крупные объекты, настроение, свет, цвет, пространство, заметные фигуры или предметы.
+- Не придумывай мелкие детали, текст, выражения лиц, сюжет, символику или смысл, если они не видны уверенно и не подтверждаются музейными фактами.
+- Если изображение маленькое, размытое или деталь неразборчива, честно опирайся на музейное описание и не делай вид, что видишь больше.`
+}
+
+async function fetchArtworkImageForGemini(artwork: MuseumArtwork): Promise<GeminiInlineImage | null> {
+  const imageUrl = artwork.imageUrl
+
+  if (!imageUrl) {
+    return null
+  }
+
+  const requestUrl = imageUrl.startsWith("/")
+    ? new URL(imageUrl, process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+    : new URL(imageUrl)
+
+  if (requestUrl.pathname.startsWith("/api/art-image/")) {
+    requestUrl.searchParams.set("size", "full")
+  }
+
+  try {
+    const response = await fetch(requestUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const contentType = response.headers.get("Content-Type") || "image/jpeg"
+
+    if (!contentType.startsWith("image/")) {
+      return null
+    }
+
+    const contentLength = Number(response.headers.get("Content-Length") || "0")
+
+    if (contentLength > MAX_VISUAL_ANALYSIS_IMAGE_BYTES) {
+      return null
+    }
+
+    const imageBuffer = Buffer.from(await response.arrayBuffer())
+
+    if (imageBuffer.byteLength > MAX_VISUAL_ANALYSIS_IMAGE_BYTES) {
+      return null
+    }
+
+    return {
+      mimeType: contentType.split(";")[0] || "image/jpeg",
+      data: imageBuffer.toString("base64"),
+    }
+  } catch (error) {
+    console.warn("Artwork image could not be prepared for Gemini visual analysis.", error)
+    return null
+  }
+}
+
 function getVoicePrompt(voice: OracleVoice): string {
   if (voice === "artHistorian") {
     return `Выступи в роли внимательного искусствоведа. Напиши образовательный комментарий на 5-7 предложений: объясни, что можно понять о работе по музейным фактам, типу, материалам, дате, темам и описанию; аккуратно свяжи это с состоянием пользователя, но не превращай ответ в терапию.
@@ -190,7 +258,9 @@ async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
   oracleVoice: OracleVoice,
+  visualAnalysisEnabled: boolean,
 ): Promise<string> {
+  const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
   const museumFacts = [
     `Музей: ${artwork.source}`,
     `Название: ${artwork.title}`,
@@ -211,9 +281,9 @@ async function requestGeminiArtworkResponse(
 
 ${museumFacts}
 
-${getVoicePrompt(oracleVoice)}`
+${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
-  return requestGeminiText(geminiPrompt, 0.7)
+  return requestGeminiText(geminiPrompt, 0.7, image || undefined)
 }
 
 export async function POST(request: Request) {
@@ -230,6 +300,7 @@ export async function POST(request: Request) {
       recentArtworkSignatures?: unknown
       searchKeywords?: unknown
       oracleVoice?: unknown
+      visualAnalysisEnabled?: unknown
     }
 
     const userText =
@@ -249,6 +320,7 @@ export async function POST(request: Request) {
     const clientRecentArtworkSignatures = sanitizeRecentValues(body.recentArtworkSignatures)
     const clientSearchKeywords = sanitizeSearchKeywords(body.searchKeywords)
     const oracleVoice = isOracleVoice(body.oracleVoice) ? body.oracleVoice : DEFAULT_ORACLE_VOICE
+    const visualAnalysisEnabled = isVisualAnalysisEnabled(body.visualAnalysisEnabled)
     const searchKeywords =
       clientSearchKeywords.length > 0 ? clientSearchKeywords : await buildKeywordCandidates(userText)
     const artwork = await fetchArtworkFromMuseums(searchKeywords, {
@@ -260,7 +332,12 @@ export async function POST(request: Request) {
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
-    const therapistText = await requestGeminiArtworkResponse(userText, artwork, oracleVoice)
+    const therapistText = await requestGeminiArtworkResponse(
+      userText,
+      artwork,
+      oracleVoice,
+      visualAnalysisEnabled,
+    )
 
     return NextResponse.json({
       imageUrl: artwork.imageUrl,
