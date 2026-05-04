@@ -160,7 +160,7 @@ function getLiteralExpansionTerms(userText: string): string[] {
     terms.push("food", "meal", "feast", "table", "banquet", "still life", "bread", "fruit")
   }
 
-  if (/(рек|вода|море|океан|river|water|sea|ocean)/i.test(normalizedText)) {
+  if (/(\bрек[аиеуой]\b|\bвод[ауыоей]\b|\bмор[еяюем]\b|\bокеан[а-я]*\b|river|water|sea|ocean)/i.test(normalizedText)) {
     terms.push("river", "water", "sea", "boat", "landscape")
   }
 
@@ -185,7 +185,7 @@ function applySelectionStrictnessToKeywords(
   }
 
   if (strictness === "literal") {
-    return uniqueSearchTerms([...getLiteralExpansionTerms(userText), ...searchKeywords].slice(0, 8), 10)
+    return uniqueSearchTerms([...getLiteralExpansionTerms(userText), ...searchKeywords], 10)
   }
 
   if (strictness === "precise") {
