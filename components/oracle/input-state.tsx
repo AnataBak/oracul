@@ -179,7 +179,13 @@ export function InputState({
                 </PopoverContent>
               </Popover>
 
-              <Popover>
+              <Popover
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setOpenSettingsHelpId(null)
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
