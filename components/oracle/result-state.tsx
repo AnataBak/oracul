@@ -6,6 +6,13 @@ import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -37,7 +44,6 @@ interface MuseumInfo {
   creditLine: string | null
   shortDescription: string | null
   description: string | null
-  publicationHistory: string | null
   artworkUrl: string
 }
 
@@ -188,27 +194,62 @@ export function ResultState({
 
             <div className="relative min-h-[320px] bg-muted/30">
               {!hasImageError ? (
-                <Image
-                  src={currentImageUrl}
-                  alt={`${painting.title} - ${painting.artist}`}
-                  width={800}
-                  height={600}
-                  className={`h-auto w-full object-cover transition-opacity duration-700 ${
-                    isImageLoaded ? "opacity-100" : "opacity-0"
-                  }`}
-                  onLoad={() => setIsImageLoaded(true)}
-                  onError={() => {
-                    if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
-                      setCurrentImageUrl(painting.fallbackImageUrl)
-                      setIsImageLoaded(false)
-                      return
-                    }
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="block w-full cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+                      aria-label="Открыть картину в большом размере"
+                    >
+                      <Image
+                        src={currentImageUrl}
+                        alt={`${painting.title} - ${painting.artist}`}
+                        width={800}
+                        height={600}
+                        className={`h-auto w-full object-cover transition-opacity duration-700 ${
+                          isImageLoaded ? "opacity-100" : "opacity-0"
+                        }`}
+                        onLoad={() => setIsImageLoaded(true)}
+                        onError={() => {
+                          if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
+                            setCurrentImageUrl(painting.fallbackImageUrl)
+                            setIsImageLoaded(false)
+                            return
+                          }
 
-                    setHasImageError(true)
-                    setIsImageLoaded(false)
-                  }}
-                  priority
-                />
+                          setHasImageError(true)
+                          setIsImageLoaded(false)
+                        }}
+                        priority
+                      />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-7xl overflow-hidden border-border bg-background/95 p-3 backdrop-blur sm:p-4">
+                    <DialogTitle className="sr-only">{painting.title}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Увеличенное изображение картины
+                    </DialogDescription>
+                    <div className="flex max-h-[calc(96vh-2rem)] flex-col gap-3">
+                      <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/5">
+                        <Image
+                          src={currentImageUrl}
+                          alt={`${painting.title} - ${painting.artist}`}
+                          width={1600}
+                          height={1200}
+                          className="mx-auto h-auto max-h-[82vh] w-auto max-w-full object-contain"
+                        />
+                      </div>
+                      <div className="px-1 pb-1">
+                        <p className="font-serif text-base leading-snug text-foreground md:text-lg">
+                          {painting.title}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {painting.year ? `${painting.artist}, ${painting.year}` : painting.artist}
+                        </p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ) : null}
 
               {!isImageLoaded && !hasImageError ? (
@@ -293,7 +334,6 @@ export function ResultState({
                       <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
                       <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
                       <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
-                      <InfoSection title="История публикаций" value={displayMuseumInfo.publicationHistory} />
 
                       <a
                         href={displayMuseumInfo.artworkUrl}

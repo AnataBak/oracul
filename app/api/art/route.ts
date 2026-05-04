@@ -285,7 +285,6 @@ export async function POST(request: Request) {
         creditLine: artwork.creditLine,
         shortDescription: artwork.shortDescription,
         description: artwork.description,
-        publicationHistory: artwork.publicationHistory,
         artworkUrl: artwork.artworkUrl,
       },
     })

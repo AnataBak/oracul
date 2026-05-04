@@ -37,7 +37,6 @@ type ArtOracleResponse = {
     creditLine: string | null
     shortDescription: string | null
     description: string | null
-    publicationHistory: string | null
     artworkUrl: string
   }
 }
