@@ -24,6 +24,8 @@ type ArtOracleResponse = {
   year?: string
   therapistText: string
   searchKeywords?: string[]
+  visualAnalysisRequested?: boolean
+  visualAnalysisUsed?: boolean
   museumInfo: {
     source: string
     artworkId: string
@@ -56,7 +58,8 @@ type OracleResult = {
   searchKeywords: string[]
   museumInfo: ArtOracleResponse["museumInfo"]
   voice: OracleVoice
-  visualAnalysisEnabled: boolean
+  visualAnalysisRequested: boolean
+  visualAnalysisUsed: boolean
 }
 
 type RecentArtworkMemory = {
@@ -204,7 +207,8 @@ export function ArtOracle() {
       searchKeywords: data.searchKeywords || searchKeywords || [],
       museumInfo: data.museumInfo,
       voice: selectedVoice,
-      visualAnalysisEnabled,
+      visualAnalysisRequested: Boolean(data.visualAnalysisRequested),
+      visualAnalysisUsed: Boolean(data.visualAnalysisUsed),
     }
   }
 
@@ -300,6 +304,9 @@ export function ArtOracle() {
               voice={result.voice}
               isRefreshing={isRefreshingSameMood}
               museumInfo={result.museumInfo}
+              visualAnalysisRequested={result.visualAnalysisRequested}
+              visualAnalysisUsed={result.visualAnalysisUsed}
+              searchKeywords={result.searchKeywords}
               onReset={handleReset}
               onRefreshSameMood={handleRefreshSameMood}
             />

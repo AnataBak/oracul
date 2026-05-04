@@ -54,6 +54,9 @@ interface ResultStateProps {
   voice: OracleVoice
   isRefreshing?: boolean
   museumInfo: MuseumInfo
+  visualAnalysisRequested: boolean
+  visualAnalysisUsed: boolean
+  searchKeywords: string[]
   onReset: () => void
   onRefreshSameMood: () => void
 }
@@ -91,12 +94,48 @@ function ListSection({
   return <InfoSection title={title} value={values.join(", ")} />
 }
 
+function getSelectionNote(museumInfo: MuseumInfo, searchKeywords: string[]): string {
+  const matchedSubjects = museumInfo.subjectTitles
+    .filter((subject) =>
+      searchKeywords.some((keyword) =>
+        subject.toLowerCase().includes(keyword.toLowerCase()),
+      ),
+    )
+    .slice(0, 3)
+  const visibleKeywords = searchKeywords.slice(0, 5)
+
+  if (matchedSubjects.length > 0) {
+    return `Работа попала в подборку по совпадению с темами: ${matchedSubjects.join(", ")}. Поиск шёл по словам: ${visibleKeywords.join(", ")}.`
+  }
+
+  if (museumInfo.shortDescription || museumInfo.description) {
+    return `Работа выбрана из подходящих музейных результатов по поисковым словам: ${visibleKeywords.join(", ")}. Дополнительно учитывались качество музейного описания и отсутствие недавних повторов.`
+  }
+
+  return `Работа выбрана из подходящих музейных результатов по поисковым словам: ${visibleKeywords.join(", ")}. Дополнительно учитывались название, автор, тип работы и отсутствие недавних повторов.`
+}
+
+function getVisualAnalysisNote(visualAnalysisRequested: boolean, visualAnalysisUsed: boolean): string {
+  if (visualAnalysisUsed) {
+    return "Визуальный анализ был включён: Gemini получила изображение работы вместе с музейной карточкой."
+  }
+
+  if (visualAnalysisRequested) {
+    return "Визуальный анализ был включён, но изображение не удалось безопасно подготовить. Ответ построен по музейной карточке."
+  }
+
+  return "Визуальный анализ был выключен. Ответ построен по музейной карточке без передачи изображения в Gemini."
+}
+
 export function ResultState({
   painting,
   comment,
   voice,
   isRefreshing = false,
   museumInfo,
+  visualAnalysisRequested,
+  visualAnalysisUsed,
+  searchKeywords,
   onReset,
   onRefreshSameMood,
 }: ResultStateProps) {
@@ -114,6 +153,8 @@ export function ResultState({
   const [translatedMuseumInfo, setTranslatedMuseumInfo] = useState<MuseumInfo | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [isShowingTranslation, setIsShowingTranslation] = useState(false)
+  const selectionNote = getSelectionNote(museumInfo, searchKeywords)
+  const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
 
   useEffect(() => {
     setDisplayedText("")
@@ -376,6 +417,11 @@ export function ResultState({
                       <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
                       <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
                       <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
+
+                      <div className="space-y-4 rounded-2xl border border-border bg-background/50 p-4">
+                        <InfoSection title="Как подбиралась работа" value={selectionNote} />
+                        <InfoSection title="Визуальный анализ" value={visualAnalysisNote} />
+                      </div>
 
                       <a
                         href={displayMuseumInfo.artworkUrl}

@@ -259,7 +259,10 @@ async function requestGeminiArtworkResponse(
   artwork: MuseumArtwork,
   oracleVoice: OracleVoice,
   visualAnalysisEnabled: boolean,
-): Promise<string> {
+): Promise<{
+  text: string
+  visualAnalysisUsed: boolean
+}> {
   const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
   const museumFacts = [
     `Музей: ${artwork.source}`,
@@ -283,7 +286,10 @@ ${museumFacts}
 
 ${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
-  return requestGeminiText(geminiPrompt, 0.7, image || undefined)
+  return {
+    text: await requestGeminiText(geminiPrompt, 0.7, image || undefined),
+    visualAnalysisUsed: Boolean(image),
+  }
 }
 
 export async function POST(request: Request) {
@@ -332,7 +338,7 @@ export async function POST(request: Request) {
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
-    const therapistText = await requestGeminiArtworkResponse(
+    const geminiArtworkResponse = await requestGeminiArtworkResponse(
       userText,
       artwork,
       oracleVoice,
@@ -346,8 +352,10 @@ export async function POST(request: Request) {
       title: artwork.title,
       artist: artwork.artist,
       year: artwork.year,
-      therapistText,
+      therapistText: geminiArtworkResponse.text,
       searchKeywords,
+      visualAnalysisRequested: visualAnalysisEnabled,
+      visualAnalysisUsed: geminiArtworkResponse.visualAnalysisUsed,
       museumInfo: {
         source: artwork.source,
         artworkId: artwork.id,
