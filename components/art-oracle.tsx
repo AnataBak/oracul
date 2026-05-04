@@ -19,7 +19,6 @@ type ArtOracleResponse = {
   artist: string
   year?: string
   therapistText: string
-  matchReasons?: string[]
   searchKeywords?: string[]
   museumInfo: {
     source: string
@@ -50,7 +49,6 @@ type OracleResult = {
     fallbackImageUrl?: string
   }
   comment: string
-  matchReasons: string[]
   searchKeywords: string[]
   museumInfo: ArtOracleResponse["museumInfo"]
 }
@@ -153,7 +151,6 @@ export function ArtOracle() {
         fallbackImageUrl: data.fallbackImageUrl || "",
       },
       comment: data.therapistText,
-      matchReasons: data.matchReasons || [],
       searchKeywords: data.searchKeywords || searchKeywords || [],
       museumInfo: data.museumInfo,
     }
@@ -244,7 +241,6 @@ export function ArtOracle() {
             <ResultState
               painting={result.painting}
               comment={result.comment}
-              matchReasons={result.matchReasons}
               isRefreshing={isRefreshingSameMood}
               museumInfo={result.museumInfo}
               onReset={handleReset}

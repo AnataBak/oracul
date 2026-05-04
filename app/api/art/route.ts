@@ -12,14 +12,6 @@ const RECENT_ARTWORK_LIMIT = 24
 const recentArtworkIds: string[] = []
 const recentArtworkSignatures: string[] = []
 
-type ArtworkResponseText = {
-  therapistText: string
-  matchReasons: string[]
-}
-
-const ARTWORK_RESPONSE_FALLBACK_TEXT =
-  "Эта работа может стать спокойной точкой внимания для твоего состояния. В ней можно искать личную ассоциацию, не требуя от себя точного ответа сразу."
-
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message
@@ -28,11 +20,60 @@ function getErrorMessage(error: unknown): string {
   return "Unknown error"
 }
 
-function extractEnglishKeywords(rawKeywords: string): string[] {
-  const matches = rawKeywords.toLowerCase().match(/[a-z]+(?:-[a-z]+)?/g) ?? []
-  const uniqueKeywords = Array.from(new Set(matches.map((item) => item.trim()).filter(Boolean)))
+function normalizeEnglishSearchTerm(value: string): string {
+  const matches = value.toLowerCase().match(/[a-z]+(?:-[a-z]+)?/g) ?? []
 
-  return uniqueKeywords.slice(0, 3)
+  return matches.join(" ").trim()
+}
+
+function uniqueSearchTerms(values: string[], limit: number): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map(normalizeEnglishSearchTerm)
+        .filter((item) => item.length >= 3),
+    ),
+  ).slice(0, limit)
+}
+
+function extractEnglishKeywords(rawKeywords: string): string[] {
+  return uniqueSearchTerms(rawKeywords.split(/[,;\n]/), 12)
+}
+
+function extractJsonArray(value: string, key: string): string[] {
+  try {
+    const parsedValue = JSON.parse(value.replace(/^```json\s*/i, "").replace(/```$/i, "").trim()) as {
+      [name: string]: unknown
+    }
+    const rawItems = parsedValue[key]
+
+    if (Array.isArray(rawItems)) {
+      return rawItems.filter((item): item is string => typeof item === "string")
+    }
+  } catch {
+    return []
+  }
+
+  return []
+}
+
+function getIntentExpansionTerms(userText: string): string[] {
+  const normalizedText = userText.toLowerCase()
+  const terms: string[] = []
+
+  if (/(пицц|ед[ауыо]|вкусн|обед|ужин|завтрак|десерт|есть|ел[аи]?|food|pizza|meal|dinner|lunch|taste|delicious)/i.test(normalizedText)) {
+    terms.push("food", "meal", "feast", "table", "still life", "fruit", "bread", "banquet", "abundance")
+  }
+
+  if (/(наслажд|удовольств|радост|кайф|довольн|pleasure|enjoy|joy|delight|satisfaction)/i.test(normalizedText)) {
+    terms.push("pleasure", "joy", "delight", "celebration", "abundance")
+  }
+
+  if (/(спокой|тих|мягк|calm|quiet|peace|soft)/i.test(normalizedText)) {
+    terms.push("calm", "serenity", "quiet", "garden", "landscape", "river")
+  }
+
+  return terms
 }
 
 function rememberArtworkId(artworkId: string) {
@@ -71,70 +112,43 @@ function sanitizeSearchKeywords(value: unknown): string[] {
     return []
   }
 
-  return Array.from(
-    new Set(
-      value
-        .filter((item): item is string => typeof item === "string")
-        .flatMap((item) => extractEnglishKeywords(item))
-        .filter((item) => item.length >= 3),
-    ),
-  ).slice(0, 10)
-}
-
-function parseArtworkResponseText(rawText: string): ArtworkResponseText {
-  const cleanedText = rawText
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```$/i, "")
-    .trim()
-
-  try {
-    const parsedValue = JSON.parse(cleanedText) as Partial<ArtworkResponseText>
-    const therapistText =
-      typeof parsedValue.therapistText === "string" ? parsedValue.therapistText.trim() : ""
-    const matchReasons = Array.isArray(parsedValue.matchReasons)
-      ? parsedValue.matchReasons
-          .filter((item): item is string => typeof item === "string")
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .slice(0, 3)
-      : []
-
-    if (therapistText) {
-      return {
-        therapistText,
-        matchReasons,
-      }
-    }
-  } catch {
-    return {
-      therapistText: rawText,
-      matchReasons: [],
-    }
-  }
-
-  return {
-    therapistText: cleanedText && !cleanedText.startsWith("{") ? cleanedText : ARTWORK_RESPONSE_FALLBACK_TEXT,
-    matchReasons: [],
-  }
+  return uniqueSearchTerms(
+    value.filter((item): item is string => typeof item === "string"),
+    12,
+  )
 }
 
 async function buildKeywordCandidates(userText: string): Promise<string[]> {
   const rawKeywords = await requestGeminiText(
-    `Прочитай этот текст: "${userText}". Верни 3 разных английских существительных или коротких образа, связанных с настроением пользователя, по которым можно искать музейную работу. Примеры: storm, silence, longing, moon, memory, river. Ответь только тремя словами или короткими фразами на английском через запятую без пояснений.`,
+    `Прочитай этот текст: "${userText}".
+Верни строго JSON без markdown и пояснений:
+{
+  "searchTerms": ["term 1", "term 2", "term 3", "term 4", "term 5", "term 6", "term 7", "term 8"]
+}
+
+Правила для searchTerms:
+- Только английские музейные поисковые слова или короткие фразы.
+- Сначала конкретные видимые мотивы и предметы, потом настроение.
+- Если пользователь говорит о еде, вкусе, пицце или застолье, обязательно добавь подходящие музейные слова: food, meal, feast, table, still life, fruit, bread, abundance.
+- Если пользователь говорит о наслаждении, радости или удовольствии, добавь pleasure, joy, delight, celebration, abundance.
+- Избегай слишком общих слов вроде abstract, dream, memory, light, portrait, если в тексте есть более конкретный образ.
+- Не больше 8 терминов.`,
     0.2,
   )
 
-  const primaryKeywords = extractEnglishKeywords(rawKeywords)
-  const fallbackKeywords = ["abstract", "dream", "memory", "light", "portrait", "nature"]
+  const structuredKeywords = extractJsonArray(rawKeywords, "searchTerms")
+  const primaryKeywords =
+    structuredKeywords.length > 0 ? uniqueSearchTerms(structuredKeywords, 8) : extractEnglishKeywords(rawKeywords)
+  const expandedKeywords = getIntentExpansionTerms(userText)
+  const fallbackKeywords = ["still life", "landscape", "interior", "nature", "portrait"]
 
-  return Array.from(new Set([...primaryKeywords, ...fallbackKeywords]))
+  return uniqueSearchTerms([...expandedKeywords, ...primaryKeywords, ...fallbackKeywords], 12)
 }
 
 async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
-): Promise<ArtworkResponseText> {
+): Promise<string> {
   const museumFacts = [
     `Музей: ${artwork.source}`,
     `Название: ${artwork.title}`,
@@ -155,25 +169,15 @@ async function requestGeminiArtworkResponse(
 
 ${museumFacts}
 
-Выступи в роли эмпатичного арт-терапевта.
-Верни строго JSON без markdown, пояснений и лишнего текста:
-{
-  "therapistText": "короткий, красивый и утешающий комментарий на 3-4 предложения",
-  "matchReasons": ["короткая причина 1", "короткая причина 2", "короткая причина 3"]
-}
-
-Правила:
-- therapistText должен объяснять, почему эта работа может мягко откликнуться состоянию пользователя.
-- matchReasons должны быть короткими и понятными: настроение, тема, материал, тип работы, название или описание.
-- Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+Выступи в роли эмпатичного арт-терапевта. Напиши красивый, бережный и достаточно развёрнутый комментарий на 5-7 предложений: сначала мягко отрази состояние пользователя, затем свяжи его с выбранной работой, а в конце дай спокойную поддерживающую мысль.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
 - Не используй внешние знания об авторе, стиле, эпохе или произведении, если этого нет в музейных фактах выше.
 - Не придумывай визуальные детали, эмоции персонажей, сюжет, цвет, место или смысл, если этого нет в фактах.
 - Если музейных данных мало, честно и бережно скажи, что работа оставляет пространство для личной ассоциации.
-- Обращайся к пользователю на "ты".`
+- Обращайся к пользователю на "ты".
+- Не используй списки, markdown, заголовки или JSON.`
 
-  const rawText = await requestGeminiText(geminiPrompt, 0.7)
-
-  return parseArtworkResponseText(rawText)
+  return requestGeminiText(geminiPrompt, 0.7)
 }
 
 export async function POST(request: Request) {
@@ -218,7 +222,7 @@ export async function POST(request: Request) {
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
-    const artworkResponse = await requestGeminiArtworkResponse(userText, artwork)
+    const therapistText = await requestGeminiArtworkResponse(userText, artwork)
 
     return NextResponse.json({
       imageUrl: artwork.imageUrl,
@@ -226,8 +230,7 @@ export async function POST(request: Request) {
       title: artwork.title,
       artist: artwork.artist,
       year: artwork.year,
-      therapistText: artworkResponse.therapistText,
-      matchReasons: artworkResponse.matchReasons,
+      therapistText,
       searchKeywords,
       museumInfo: {
         source: artwork.source,
