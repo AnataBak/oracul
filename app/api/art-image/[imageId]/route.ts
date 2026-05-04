@@ -12,14 +12,15 @@ function isValidImageId(value: string): boolean {
   return /^[a-zA-Z0-9-]+$/.test(value)
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { imageId } = await context.params
 
   if (!isValidImageId(imageId)) {
     return NextResponse.json({ error: "Invalid imageId" }, { status: 400 })
   }
 
-  const imageUrl = `https://www.artic.edu/iiif/2/${imageId}/full/843,/0/default.jpg`
+  const size = new URL(request.url).searchParams.get("size") === "full" ? "full" : "843,"
+  const imageUrl = `https://www.artic.edu/iiif/2/${imageId}/full/${size}/0/default.jpg`
   const imageResponse = await fetch(imageUrl, {
     headers: {
       Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",

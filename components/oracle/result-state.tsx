@@ -26,6 +26,7 @@ interface Painting {
   artist: string
   year: string
   imageUrl: string
+  fullImageUrl?: string
   fallbackImageUrl?: string
 }
 
@@ -104,7 +105,11 @@ export function ResultState({
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [hasImageError, setHasImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
+  const [imageZoom, setImageZoom] = useState(1)
   const [currentImageUrl, setCurrentImageUrl] = useState(painting.imageUrl)
+  const [currentFullImageUrl, setCurrentFullImageUrl] = useState(
+    painting.fullImageUrl || painting.imageUrl,
+  )
   const [displayMuseumInfo, setDisplayMuseumInfo] = useState(museumInfo)
   const [translatedMuseumInfo, setTranslatedMuseumInfo] = useState<MuseumInfo | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
@@ -128,10 +133,12 @@ export function ResultState({
 
   useEffect(() => {
     setCurrentImageUrl(painting.imageUrl)
+    setCurrentFullImageUrl(painting.fullImageUrl || painting.imageUrl)
     setIsImageLoaded(false)
     setHasImageError(false)
     setIsLiked(false)
-  }, [painting.imageUrl])
+    setImageZoom(1)
+  }, [painting.fullImageUrl, painting.imageUrl])
 
   useEffect(() => {
     setDisplayMuseumInfo(museumInfo)
@@ -200,6 +207,7 @@ export function ResultState({
                       type="button"
                       className="block w-full cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
                       aria-label="Открыть картину в большом размере"
+                      onClick={() => setImageZoom(1)}
                     >
                       <Image
                         src={currentImageUrl}
@@ -213,6 +221,7 @@ export function ResultState({
                         onError={() => {
                           if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
                             setCurrentImageUrl(painting.fallbackImageUrl)
+                            setCurrentFullImageUrl(painting.fallbackImageUrl)
                             setIsImageLoaded(false)
                             return
                           }
@@ -229,15 +238,48 @@ export function ResultState({
                     <DialogDescription className="sr-only">
                       Увеличенное изображение картины
                     </DialogDescription>
-                    <div className="flex max-h-[calc(96vh-2rem)] flex-col gap-3">
-                      <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/5">
-                        <Image
-                          src={currentImageUrl}
-                          alt={`${painting.title} - ${painting.artist}`}
-                          width={1600}
-                          height={1200}
-                          className="mx-auto h-auto max-h-[82vh] w-auto max-w-full object-contain"
-                        />
+                    <div className="flex max-h-[calc(96vh-2rem)] flex-col gap-3 pt-8 sm:pt-0">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/80 px-3 py-2">
+                        <p className="text-sm text-muted-foreground">
+                          {imageZoom === 1 ? "Вписано в окно" : `Увеличение ${imageZoom}×`}
+                        </p>
+                        <div className="flex gap-2">
+                          {[1, 1.5, 2, 3].map((zoom) => (
+                            <Button
+                              key={zoom}
+                              type="button"
+                              variant={imageZoom === zoom ? "default" : "outline"}
+                              size="sm"
+                              className="h-8 rounded-full px-3"
+                              onClick={() => setImageZoom(zoom)}
+                            >
+                              {zoom}×
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/5 p-2">
+                        <div
+                          className="mx-auto transition-[width] duration-200"
+                          style={{ width: imageZoom === 1 ? "100%" : `${imageZoom * 100}%` }}
+                        >
+                          <Image
+                            src={currentFullImageUrl}
+                            alt={`${painting.title} - ${painting.artist}`}
+                            width={2400}
+                            height={1800}
+                            className={`mx-auto h-auto w-full object-contain ${
+                              imageZoom === 1 ? "max-h-[78vh]" : "max-h-none max-w-none"
+                            }`}
+                            onError={() => {
+                              if (currentFullImageUrl !== currentImageUrl) {
+                                setCurrentFullImageUrl(currentImageUrl)
+                              }
+                            }}
+                            unoptimized
+                          />
+                        </div>
                       </div>
                       <div className="px-1 pb-1">
                         <p className="font-serif text-base leading-snug text-foreground md:text-lg">

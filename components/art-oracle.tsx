@@ -16,6 +16,7 @@ const RECENT_ARTWORK_LIMIT = 100
 
 type ArtOracleResponse = {
   imageUrl: string
+  fullImageUrl?: string
   fallbackImageUrl?: string
   title: string
   artist: string
@@ -47,6 +48,7 @@ type OracleResult = {
     artist: string
     year: string
     imageUrl: string
+    fullImageUrl?: string
     fallbackImageUrl?: string
   }
   comment: string
@@ -174,6 +176,7 @@ export function ArtOracle() {
         artist: data.artist,
         year: data.year || "",
         imageUrl: data.imageUrl,
+        fullImageUrl: data.fullImageUrl || data.imageUrl,
         fallbackImageUrl: data.fallbackImageUrl || "",
       },
       comment: data.therapistText,

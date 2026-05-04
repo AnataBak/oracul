@@ -264,6 +264,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       imageUrl: artwork.imageUrl,
+      fullImageUrl: artwork.fullImageUrl || artwork.imageUrl,
       fallbackImageUrl: artwork.fallbackImageUrl || "",
       title: artwork.title,
       artist: artwork.artist,
