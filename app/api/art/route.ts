@@ -124,11 +124,7 @@ function isVisualAnalysisEnabled(value: unknown): boolean {
   return value === true
 }
 
-function getVisualAnalysisInstructions(enabled: boolean): string {
-  if (!enabled) {
-    return ""
-  }
-
+function getVisualAnalysisInstructions(): string {
   return `
 
 Дополнительно тебе передано изображение выбранной работы. Используй его вместе с музейными фактами.
@@ -150,7 +146,7 @@ async function fetchArtworkImageForGemini(artwork: MuseumArtwork): Promise<Gemin
     : new URL(imageUrl)
 
   if (requestUrl.pathname.startsWith("/api/art-image/")) {
-    requestUrl.searchParams.set("size", "1024,")
+    requestUrl.searchParams.set("size", "full")
   }
 
   try {
@@ -264,6 +260,7 @@ async function requestGeminiArtworkResponse(
   oracleVoice: OracleVoice,
   visualAnalysisEnabled: boolean,
 ): Promise<string> {
+  const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
   const museumFacts = [
     `Музей: ${artwork.source}`,
     `Название: ${artwork.title}`,
@@ -284,9 +281,7 @@ async function requestGeminiArtworkResponse(
 
 ${museumFacts}
 
-${getVoicePrompt(oracleVoice)}${getVisualAnalysisInstructions(visualAnalysisEnabled)}`
-
-  const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
+${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
   return requestGeminiText(geminiPrompt, 0.7, image || undefined)
 }
