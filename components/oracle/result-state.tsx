@@ -43,7 +43,6 @@ interface MuseumInfo {
 interface ResultStateProps {
   painting: Painting
   comment: string
-  matchReasons: string[]
   isRefreshing?: boolean
   museumInfo: MuseumInfo
   onReset: () => void
@@ -86,7 +85,6 @@ function ListSection({
 export function ResultState({
   painting,
   comment,
-  matchReasons,
   isRefreshing = false,
   museumInfo,
   onReset,
@@ -342,21 +340,6 @@ export function ResultState({
             </p>
           </div>
 
-          {matchReasons.length > 0 ? (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <p className="mb-4 text-sm uppercase tracking-wider text-muted-foreground">
-                Почему эта картина
-              </p>
-              <ul className="space-y-3">
-                {matchReasons.map((reason) => (
-                  <li key={reason} className="flex gap-3 text-sm leading-relaxed text-foreground">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                    <span>{reason}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </div>
       </div>
 

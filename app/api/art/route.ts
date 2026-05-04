@@ -12,14 +12,6 @@ const RECENT_ARTWORK_LIMIT = 24
 const recentArtworkIds: string[] = []
 const recentArtworkSignatures: string[] = []
 
-type ArtworkResponseText = {
-  therapistText: string
-  matchReasons: string[]
-}
-
-const ARTWORK_RESPONSE_FALLBACK_TEXT =
-  "Эта работа может стать спокойной точкой внимания для твоего состояния. В ней можно искать личную ассоциацию, не требуя от себя точного ответа сразу."
-
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message
@@ -81,44 +73,6 @@ function sanitizeSearchKeywords(value: unknown): string[] {
   ).slice(0, 10)
 }
 
-function parseArtworkResponseText(rawText: string): ArtworkResponseText {
-  const cleanedText = rawText
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```$/i, "")
-    .trim()
-
-  try {
-    const parsedValue = JSON.parse(cleanedText) as Partial<ArtworkResponseText>
-    const therapistText =
-      typeof parsedValue.therapistText === "string" ? parsedValue.therapistText.trim() : ""
-    const matchReasons = Array.isArray(parsedValue.matchReasons)
-      ? parsedValue.matchReasons
-          .filter((item): item is string => typeof item === "string")
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .slice(0, 3)
-      : []
-
-    if (therapistText) {
-      return {
-        therapistText,
-        matchReasons,
-      }
-    }
-  } catch {
-    return {
-      therapistText: rawText,
-      matchReasons: [],
-    }
-  }
-
-  return {
-    therapistText: cleanedText && !cleanedText.startsWith("{") ? cleanedText : ARTWORK_RESPONSE_FALLBACK_TEXT,
-    matchReasons: [],
-  }
-}
-
 async function buildKeywordCandidates(userText: string): Promise<string[]> {
   const rawKeywords = await requestGeminiText(
     `Прочитай этот текст: "${userText}". Верни 3 разных английских существительных или коротких образа, связанных с настроением пользователя, по которым можно искать музейную работу. Примеры: storm, silence, longing, moon, memory, river. Ответь только тремя словами или короткими фразами на английском через запятую без пояснений.`,
@@ -134,7 +88,7 @@ async function buildKeywordCandidates(userText: string): Promise<string[]> {
 async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
-): Promise<ArtworkResponseText> {
+): Promise<string> {
   const museumFacts = [
     `Музей: ${artwork.source}`,
     `Название: ${artwork.title}`,
@@ -155,25 +109,15 @@ async function requestGeminiArtworkResponse(
 
 ${museumFacts}
 
-Выступи в роли эмпатичного арт-терапевта.
-Верни строго JSON без markdown, пояснений и лишнего текста:
-{
-  "therapistText": "короткий, красивый и утешающий комментарий на 3-4 предложения",
-  "matchReasons": ["короткая причина 1", "короткая причина 2", "короткая причина 3"]
-}
-
-Правила:
-- therapistText должен объяснять, почему эта работа может мягко откликнуться состоянию пользователя.
-- matchReasons должны быть короткими и понятными: настроение, тема, материал, тип работы, название или описание.
-- Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+Выступи в роли эмпатичного арт-терапевта. Напиши красивый, бережный и достаточно развёрнутый комментарий на 5-7 предложений: сначала мягко отрази состояние пользователя, затем свяжи его с выбранной работой, а в конце дай спокойную поддерживающую мысль.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
 - Не используй внешние знания об авторе, стиле, эпохе или произведении, если этого нет в музейных фактах выше.
 - Не придумывай визуальные детали, эмоции персонажей, сюжет, цвет, место или смысл, если этого нет в фактах.
 - Если музейных данных мало, честно и бережно скажи, что работа оставляет пространство для личной ассоциации.
-- Обращайся к пользователю на "ты".`
+- Обращайся к пользователю на "ты".
+- Не используй списки, markdown, заголовки или JSON.`
 
-  const rawText = await requestGeminiText(geminiPrompt, 0.7)
-
-  return parseArtworkResponseText(rawText)
+  return requestGeminiText(geminiPrompt, 0.7)
 }
 
 export async function POST(request: Request) {
@@ -218,7 +162,7 @@ export async function POST(request: Request) {
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
-    const artworkResponse = await requestGeminiArtworkResponse(userText, artwork)
+    const therapistText = await requestGeminiArtworkResponse(userText, artwork)
 
     return NextResponse.json({
       imageUrl: artwork.imageUrl,
@@ -226,8 +170,7 @@ export async function POST(request: Request) {
       title: artwork.title,
       artist: artwork.artist,
       year: artwork.year,
-      therapistText: artworkResponse.therapistText,
-      matchReasons: artworkResponse.matchReasons,
+      therapistText,
       searchKeywords,
       museumInfo: {
         source: artwork.source,
