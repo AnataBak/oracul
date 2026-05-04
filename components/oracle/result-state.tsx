@@ -20,6 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { ErrorNotice } from "./error-notice"
 
 interface Painting {
   title: string
@@ -153,6 +154,7 @@ export function ResultState({
   const [translatedMuseumInfo, setTranslatedMuseumInfo] = useState<MuseumInfo | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [isShowingTranslation, setIsShowingTranslation] = useState(false)
+  const [translationError, setTranslationError] = useState<string | null>(null)
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
 
@@ -186,23 +188,27 @@ export function ResultState({
     setTranslatedMuseumInfo(null)
     setIsShowingTranslation(false)
     setIsTranslating(false)
+    setTranslationError(null)
   }, [museumInfo])
 
   const handleTranslateToggle = async () => {
     if (isShowingTranslation) {
       setDisplayMuseumInfo(museumInfo)
       setIsShowingTranslation(false)
+      setTranslationError(null)
       return
     }
 
     if (translatedMuseumInfo) {
       setDisplayMuseumInfo(translatedMuseumInfo)
       setIsShowingTranslation(true)
+      setTranslationError(null)
       return
     }
 
     try {
       setIsTranslating(true)
+      setTranslationError(null)
 
       const response = await fetch("/api/translate-museum", {
         method: "POST",
@@ -225,8 +231,8 @@ export function ResultState({
       setDisplayMuseumInfo(data.museumInfo)
       setIsShowingTranslation(true)
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : "Не удалось перевести текст. Попробуй еще раз.",
+      setTranslationError(
+        error instanceof Error ? error.message : "Не удалось перевести текст. Попробуй ещё раз.",
       )
     } finally {
       setIsTranslating(false)
@@ -380,6 +386,14 @@ export function ResultState({
                     </SheetHeader>
 
                     <div className="space-y-6 px-4 pb-6">
+                      {translationError ? (
+                        <ErrorNotice
+                          title="Перевод не получился"
+                          message={translationError}
+                          onDismiss={() => setTranslationError(null)}
+                        />
+                      ) : null}
+
                       <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background/70 p-4">
                         <p className="text-sm text-muted-foreground">
                           {isShowingTranslation ? "Показан перевод на русский" : "Показан оригинальный текст"}
