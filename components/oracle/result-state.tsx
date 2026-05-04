@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
+import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   Sheet,
   SheetContent,
@@ -18,6 +26,7 @@ interface Painting {
   artist: string
   year: string
   imageUrl: string
+  fullImageUrl?: string
   fallbackImageUrl?: string
 }
 
@@ -36,13 +45,13 @@ interface MuseumInfo {
   creditLine: string | null
   shortDescription: string | null
   description: string | null
-  publicationHistory: string | null
   artworkUrl: string
 }
 
 interface ResultStateProps {
   painting: Painting
   comment: string
+  voice: OracleVoice
   isRefreshing?: boolean
   museumInfo: MuseumInfo
   onReset: () => void
@@ -85,16 +94,22 @@ function ListSection({
 export function ResultState({
   painting,
   comment,
+  voice,
   isRefreshing = false,
   museumInfo,
   onReset,
   onRefreshSameMood,
 }: ResultStateProps) {
+  const voiceOption = getOracleVoiceOption(voice)
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
   const [hasImageError, setHasImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
+  const [imageZoom, setImageZoom] = useState(1)
   const [currentImageUrl, setCurrentImageUrl] = useState(painting.imageUrl)
+  const [currentFullImageUrl, setCurrentFullImageUrl] = useState(
+    painting.fullImageUrl || painting.imageUrl,
+  )
   const [displayMuseumInfo, setDisplayMuseumInfo] = useState(museumInfo)
   const [translatedMuseumInfo, setTranslatedMuseumInfo] = useState<MuseumInfo | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
@@ -118,10 +133,12 @@ export function ResultState({
 
   useEffect(() => {
     setCurrentImageUrl(painting.imageUrl)
+    setCurrentFullImageUrl(painting.fullImageUrl || painting.imageUrl)
     setIsImageLoaded(false)
     setHasImageError(false)
     setIsLiked(false)
-  }, [painting.imageUrl])
+    setImageZoom(1)
+  }, [painting.fullImageUrl, painting.imageUrl])
 
   useEffect(() => {
     setDisplayMuseumInfo(museumInfo)
@@ -184,27 +201,97 @@ export function ResultState({
 
             <div className="relative min-h-[320px] bg-muted/30">
               {!hasImageError ? (
-                <Image
-                  src={currentImageUrl}
-                  alt={`${painting.title} - ${painting.artist}`}
-                  width={800}
-                  height={600}
-                  className={`h-auto w-full object-cover transition-opacity duration-700 ${
-                    isImageLoaded ? "opacity-100" : "opacity-0"
-                  }`}
-                  onLoad={() => setIsImageLoaded(true)}
-                  onError={() => {
-                    if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
-                      setCurrentImageUrl(painting.fallbackImageUrl)
-                      setIsImageLoaded(false)
-                      return
-                    }
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="block w-full cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+                      aria-label="Открыть картину в большом размере"
+                      onClick={() => setImageZoom(1)}
+                    >
+                      <Image
+                        src={currentImageUrl}
+                        alt={`${painting.title} - ${painting.artist}`}
+                        width={800}
+                        height={600}
+                        className={`h-auto w-full object-cover transition-opacity duration-700 ${
+                          isImageLoaded ? "opacity-100" : "opacity-0"
+                        }`}
+                        onLoad={() => setIsImageLoaded(true)}
+                        onError={() => {
+                          if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
+                            setCurrentImageUrl(painting.fallbackImageUrl)
+                            setCurrentFullImageUrl(painting.fallbackImageUrl)
+                            setIsImageLoaded(false)
+                            return
+                          }
 
-                    setHasImageError(true)
-                    setIsImageLoaded(false)
-                  }}
-                  priority
-                />
+                          setHasImageError(true)
+                          setIsImageLoaded(false)
+                        }}
+                        priority
+                      />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-7xl overflow-hidden border-border bg-background/95 p-3 backdrop-blur sm:p-4">
+                    <DialogTitle className="sr-only">{painting.title}</DialogTitle>
+                    <DialogDescription className="sr-only">
+                      Увеличенное изображение картины
+                    </DialogDescription>
+                    <div className="flex max-h-[calc(96vh-2rem)] flex-col gap-3 pt-8 sm:pt-0">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/80 px-3 py-2">
+                        <p className="text-sm text-muted-foreground">
+                          {imageZoom === 1 ? "Вписано в окно" : `Увеличение ${imageZoom}×`}
+                        </p>
+                        <div className="flex gap-2">
+                          {[1, 1.5, 2, 3].map((zoom) => (
+                            <Button
+                              key={zoom}
+                              type="button"
+                              variant={imageZoom === zoom ? "default" : "outline"}
+                              size="sm"
+                              className="h-8 rounded-full px-3"
+                              onClick={() => setImageZoom(zoom)}
+                            >
+                              {zoom}×
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/5 p-2">
+                        <div
+                          className="mx-auto transition-[width] duration-200"
+                          style={{ width: imageZoom === 1 ? "100%" : `${imageZoom * 100}%` }}
+                        >
+                          <Image
+                            src={currentFullImageUrl}
+                            alt={`${painting.title} - ${painting.artist}`}
+                            width={2400}
+                            height={1800}
+                            className={`mx-auto h-auto w-full object-contain ${
+                              imageZoom === 1 ? "max-h-[78vh]" : "max-h-none max-w-none"
+                            }`}
+                            onError={() => {
+                              if (currentFullImageUrl !== currentImageUrl) {
+                                setCurrentFullImageUrl(currentImageUrl)
+                              }
+                            }}
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                      <div className="px-1 pb-1">
+                        <p className="font-serif text-base leading-snug text-foreground md:text-lg">
+                          {painting.title}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {painting.year ? `${painting.artist}, ${painting.year}` : painting.artist}
+                        </p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ) : null}
 
               {!isImageLoaded && !hasImageError ? (
@@ -289,7 +376,6 @@ export function ResultState({
                       <InfoSection title="Материалы" value={displayMuseumInfo.mediumDisplay} />
                       <InfoSection title="Размеры" value={displayMuseumInfo.dimensions} />
                       <InfoSection title="Как попала в коллекцию" value={displayMuseumInfo.creditLine} />
-                      <InfoSection title="История публикаций" value={displayMuseumInfo.publicationHistory} />
 
                       <a
                         href={displayMuseumInfo.artworkUrl}
@@ -329,9 +415,15 @@ export function ResultState({
 
         <div className="space-y-6 opacity-100 transition-all duration-500 delay-500">
           <div className="rounded-xl border border-border bg-card p-6 md:p-8">
-            <p className="mb-4 text-sm uppercase tracking-wider text-muted-foreground">
-              Послание оракула
-            </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">
+                Послание оракула
+              </p>
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <span aria-hidden="true">{voiceOption.icon}</span>
+                {voiceOption.label}
+              </span>
+            </div>
             <p className="whitespace-pre-line text-base leading-relaxed text-foreground md:text-lg">
               {displayedText}
               {displayedText.length < comment.length ? (

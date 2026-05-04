@@ -4,6 +4,7 @@ const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
 export type MuseumArtwork = {
   id: string
   imageUrl: string
+  fullImageUrl?: string
   fallbackImageUrl?: string
   title: string
   artist: string
@@ -723,8 +724,8 @@ async function fetchRijksImageUrl(artworkUrl: string): Promise<string | null> {
   return match?.[1] || null
 }
 
-function buildVamImageUrl(imageId: string): string {
-  return `https://framemark.vam.ac.uk/collections/${imageId}/full/!800,800/0/default.jpg`
+function buildVamImageUrl(imageId: string, size = "!800,800"): string {
+  return `https://framemark.vam.ac.uk/collections/${imageId}/full/${size}/0/default.jpg`
 }
 
 function buildSmkArtworkUrl(objectNumber: string): string {
@@ -799,6 +800,7 @@ async function searchArtInstitute(keyword: string, recentArtworkIds: string[]): 
     .map((artwork) => ({
       id: `artic:${artwork.id}`,
       imageUrl: `/api/art-image/${artwork.image_id}`,
+      fullImageUrl: `/api/art-image/${artwork.image_id}?size=full`,
       fallbackImageUrl: artwork.thumbnail?.lqip || "",
       title: artwork.title,
       artist: artwork.artist_title || "Неизвестный автор",
@@ -863,6 +865,7 @@ async function searchMet(keyword: string, recentArtworkIds: string[]): Promise<M
       return {
         id: `met:${artwork.objectID}`,
         imageUrl: artwork.primaryImageSmall || artwork.primaryImage || "",
+        fullImageUrl: artwork.primaryImage || artwork.primaryImageSmall || "",
         fallbackImageUrl: artwork.primaryImage || "",
         title: artwork.title || "Без названия",
         artist,
@@ -911,6 +914,7 @@ async function searchCleveland(keyword: string, recentArtworkIds: string[]): Pro
     .map((artwork) => ({
       id: `cleveland:${artwork.id}`,
       imageUrl: artwork.images?.web?.url || artwork.images?.print?.url || "",
+      fullImageUrl: artwork.images?.print?.url || artwork.images?.web?.url || "",
       fallbackImageUrl: artwork.images?.print?.url || "",
       title: artwork.title || "Без названия",
       artist: artwork.creators?.[0]?.description || "Неизвестный автор",
@@ -992,6 +996,7 @@ async function searchRijksmuseum(keyword: string, recentArtworkIds: string[]): P
     artworks.push({
       id: `rijks:${objectId}`,
       imageUrl,
+      fullImageUrl: imageUrl,
       fallbackImageUrl: "",
       title,
       artist,
@@ -1076,6 +1081,7 @@ async function searchVam(keyword: string, recentArtworkIds: string[]): Promise<M
       return {
         id: `vam:${detail.systemNumber || search.systemNumber}`,
         imageUrl: buildVamImageUrl(imageId),
+        fullImageUrl: buildVamImageUrl(imageId, "full"),
         fallbackImageUrl: search._images?._primary_thumbnail || "",
         title,
         artist,
@@ -1135,6 +1141,7 @@ async function searchSmk(keyword: string, recentArtworkIds: string[]): Promise<M
       return {
         id: `smk:${objectNumber}`,
         imageUrl: artwork.image_thumbnail || artwork.image_cropped || artwork.image_native || "",
+        fullImageUrl: artwork.image_native || artwork.image_cropped || artwork.image_thumbnail || "",
         fallbackImageUrl: artwork.image_native || artwork.image_cropped || "",
         title: artwork.titles?.[0]?.title || "Без названия",
         artist,

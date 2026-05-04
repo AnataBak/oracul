@@ -5,6 +5,7 @@ import {
   type MuseumArtwork,
 } from "./museum-providers"
 import { requestGeminiText } from "../gemini"
+import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 
 export const runtime = "nodejs"
 
@@ -118,6 +119,46 @@ function sanitizeSearchKeywords(value: unknown): string[] {
   )
 }
 
+function getVoicePrompt(voice: OracleVoice): string {
+  if (voice === "artHistorian") {
+    return `Выступи в роли внимательного искусствоведа. Напиши образовательный комментарий на 5-7 предложений: объясни, что можно понять о работе по музейным фактам, типу, материалам, дате, темам и описанию; аккуратно свяжи это с состоянием пользователя, но не превращай ответ в терапию.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+- Не используй внешние знания об авторе, стиле, эпохе или произведении, если этого нет в музейных фактах выше.
+- Не придумывай визуальные детали, символику, технику или контекст, если этого нет в фактах.
+- Если музейных данных мало, честно скажи, что карточка не даёт достаточно контекста, и объясни только то, что известно.
+- Обращайся к пользователю на "ты".
+- Не используй списки, markdown, заголовки или JSON.`
+  }
+
+  if (voice === "poet") {
+    return `Выступи в роли поэта. Напиши короткую свободную стихотворную строфу на 4-6 строк, которая соединяет состояние пользователя и выбранную работу.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+- Не придумывай конкретные визуальные детали, персонажей, цвета или сюжет, если этого нет в фактах.
+- Не объясняй картину прозой и не делай искусствоведческий разбор.
+- Пусть текст будет мягким, образным и понятным, без пафоса.
+- Обращайся к пользователю на "ты" только если это естественно.
+- Не используй markdown, заголовки или JSON.`
+  }
+
+  if (voice === "oracle") {
+    return `Выступи в роли таинственного, но бережного оракула. Напиши метафорическое послание на 5-7 предложений: прочитай работу как знак для текущего состояния пользователя, но не делай жёстких предсказаний и не утверждай судьбу.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+- Формулируй как приглашение к размышлению: "эта работа словно говорит", "сегодняшний знак может быть о...".
+- Не используй внешние знания, мистические факты, биографию автора или символику, если этого нет в музейных фактах.
+- Не придумывай визуальные детали, персонажей, цвета, сюжет или место, если этого нет в фактах.
+- Обращайся к пользователю на "ты".
+- Не используй списки, markdown, заголовки или JSON.`
+  }
+
+  return `Выступи в роли эмпатичного арт-терапевта. Напиши красивый, бережный и достаточно развёрнутый комментарий на 5-7 предложений: сначала мягко отрази состояние пользователя, затем свяжи его с выбранной работой, а в конце дай спокойную поддерживающую мысль.
+Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
+- Не используй внешние знания об авторе, стиле, эпохе или произведении, если этого нет в музейных фактах выше.
+- Не придумывай визуальные детали, эмоции персонажей, сюжет, цвет, место или смысл, если этого нет в фактах.
+- Если музейных данных мало, честно и бережно скажи, что работа оставляет пространство для личной ассоциации.
+- Обращайся к пользователю на "ты".
+- Не используй списки, markdown, заголовки или JSON.`
+}
+
 async function buildKeywordCandidates(userText: string): Promise<string[]> {
   const rawKeywords = await requestGeminiText(
     `Прочитай этот текст: "${userText}".
@@ -148,6 +189,7 @@ async function buildKeywordCandidates(userText: string): Promise<string[]> {
 async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
+  oracleVoice: OracleVoice,
 ): Promise<string> {
   const museumFacts = [
     `Музей: ${artwork.source}`,
@@ -169,13 +211,7 @@ async function requestGeminiArtworkResponse(
 
 ${museumFacts}
 
-Выступи в роли эмпатичного арт-терапевта. Напиши красивый, бережный и достаточно развёрнутый комментарий на 5-7 предложений: сначала мягко отрази состояние пользователя, затем свяжи его с выбранной работой, а в конце дай спокойную поддерживающую мысль.
-Строго опирайся только на музейные факты выше: название, автора, дату, тип, материалы, темы и описание.
-- Не используй внешние знания об авторе, стиле, эпохе или произведении, если этого нет в музейных фактах выше.
-- Не придумывай визуальные детали, эмоции персонажей, сюжет, цвет, место или смысл, если этого нет в фактах.
-- Если музейных данных мало, честно и бережно скажи, что работа оставляет пространство для личной ассоциации.
-- Обращайся к пользователю на "ты".
-- Не используй списки, markdown, заголовки или JSON.`
+${getVoicePrompt(oracleVoice)}`
 
   return requestGeminiText(geminiPrompt, 0.7)
 }
@@ -193,6 +229,7 @@ export async function POST(request: Request) {
       recentArtworkIds?: unknown
       recentArtworkSignatures?: unknown
       searchKeywords?: unknown
+      oracleVoice?: unknown
     }
 
     const userText =
@@ -211,6 +248,7 @@ export async function POST(request: Request) {
     const clientRecentArtworkIds = sanitizeRecentValues(body.recentArtworkIds)
     const clientRecentArtworkSignatures = sanitizeRecentValues(body.recentArtworkSignatures)
     const clientSearchKeywords = sanitizeSearchKeywords(body.searchKeywords)
+    const oracleVoice = isOracleVoice(body.oracleVoice) ? body.oracleVoice : DEFAULT_ORACLE_VOICE
     const searchKeywords =
       clientSearchKeywords.length > 0 ? clientSearchKeywords : await buildKeywordCandidates(userText)
     const artwork = await fetchArtworkFromMuseums(searchKeywords, {
@@ -222,10 +260,11 @@ export async function POST(request: Request) {
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
-    const therapistText = await requestGeminiArtworkResponse(userText, artwork)
+    const therapistText = await requestGeminiArtworkResponse(userText, artwork, oracleVoice)
 
     return NextResponse.json({
       imageUrl: artwork.imageUrl,
+      fullImageUrl: artwork.fullImageUrl || artwork.imageUrl,
       fallbackImageUrl: artwork.fallbackImageUrl || "",
       title: artwork.title,
       artist: artwork.artist,
@@ -247,7 +286,6 @@ export async function POST(request: Request) {
         creditLine: artwork.creditLine,
         shortDescription: artwork.shortDescription,
         description: artwork.description,
-        publicationHistory: artwork.publicationHistory,
         artworkUrl: artwork.artworkUrl,
       },
     })

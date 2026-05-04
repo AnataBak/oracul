@@ -2,14 +2,23 @@
 
 import { Palette, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
 
 interface InputStateProps {
   value: string
+  selectedVoice: OracleVoice
   onChange: (value: string) => void
+  onVoiceChange: (value: OracleVoice) => void
   onSubmit: () => void
 }
 
-export function InputState({ value, onChange, onSubmit }: InputStateProps) {
+export function InputState({
+  value,
+  selectedVoice,
+  onChange,
+  onVoiceChange,
+  onSubmit,
+}: InputStateProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.metaKey) {
       e.preventDefault()
@@ -52,6 +61,36 @@ export function InputState({ value, onChange, onSubmit }: InputStateProps) {
                        bg-transparent border-none focus:ring-0 focus:outline-none"
             autoFocus
           />
+
+          <div className="mt-5 space-y-3 text-left">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {ORACLE_VOICE_OPTIONS.map((voice) => {
+                const isSelected = voice.id === selectedVoice
+
+                return (
+                  <button
+                    key={voice.id}
+                    type="button"
+                    onClick={() => onVoiceChange(voice.id)}
+                    className={`rounded-xl border p-3 text-left transition-all duration-200 ${
+                      isSelected
+                        ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
+                        : "border-border bg-background/40 hover:border-primary/30 hover:bg-primary/5"
+                    }`}
+                  >
+                    <span className="mb-1 flex items-center gap-2 text-sm font-medium text-foreground">
+                      <span aria-hidden="true">{voice.icon}</span>
+                      {voice.label}
+                    </span>
+                    <span className="block text-xs leading-relaxed text-muted-foreground">
+                      {voice.description}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           
           {/* Разделитель */}
           <div className="h-px bg-border my-4" />

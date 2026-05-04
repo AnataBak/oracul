@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 import { InputState } from "./oracle/input-state"
 import { LoadingState } from "./oracle/loading-state"
 import { ResultState } from "./oracle/result-state"
@@ -10,10 +11,12 @@ import { ResultState } from "./oracle/result-state"
 export type OracleStatus = "input" | "loading" | "result"
 
 const RECENT_ARTWORK_STORAGE_KEY = "art-oracle-recent-artworks"
+const ORACLE_VOICE_STORAGE_KEY = "art-oracle-voice"
 const RECENT_ARTWORK_LIMIT = 100
 
 type ArtOracleResponse = {
   imageUrl: string
+  fullImageUrl?: string
   fallbackImageUrl?: string
   title: string
   artist: string
@@ -35,7 +38,6 @@ type ArtOracleResponse = {
     creditLine: string | null
     shortDescription: string | null
     description: string | null
-    publicationHistory: string | null
     artworkUrl: string
   }
 }
@@ -46,11 +48,13 @@ type OracleResult = {
     artist: string
     year: string
     imageUrl: string
+    fullImageUrl?: string
     fallbackImageUrl?: string
   }
   comment: string
   searchKeywords: string[]
   museumInfo: ArtOracleResponse["museumInfo"]
+  voice: OracleVoice
 }
 
 type RecentArtworkMemory = {
@@ -101,9 +105,20 @@ function rememberRecentArtwork(artworkId: string, artworkSignature?: string) {
   window.localStorage.setItem(RECENT_ARTWORK_STORAGE_KEY, JSON.stringify(nextMemory))
 }
 
+function readSavedOracleVoice(): OracleVoice {
+  if (typeof window === "undefined") {
+    return DEFAULT_ORACLE_VOICE
+  }
+
+  const savedVoice = window.localStorage.getItem(ORACLE_VOICE_STORAGE_KEY)
+
+  return isOracleVoice(savedVoice) ? savedVoice : DEFAULT_ORACLE_VOICE
+}
+
 export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
+  const [selectedVoice, setSelectedVoice] = useState<OracleVoice>(DEFAULT_ORACLE_VOICE)
   const [isVisible, setIsVisible] = useState(false)
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
@@ -112,6 +127,18 @@ export function ArtOracle() {
     const timer = setTimeout(() => setIsVisible(true), 100)
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    setSelectedVoice(readSavedOracleVoice())
+  }, [])
+
+  const handleVoiceChange = (voice: OracleVoice) => {
+    setSelectedVoice(voice)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ORACLE_VOICE_STORAGE_KEY, voice)
+    }
+  }
 
   const requestArtwork = async (text: string, searchKeywords?: string[]): Promise<OracleResult> => {
     const recentArtworkMemory = readRecentArtworkMemory()
@@ -125,6 +152,7 @@ export function ArtOracle() {
         recentArtworkIds: recentArtworkMemory.ids,
         recentArtworkSignatures: recentArtworkMemory.signatures,
         searchKeywords,
+        oracleVoice: selectedVoice,
       }),
     })
 
@@ -148,11 +176,13 @@ export function ArtOracle() {
         artist: data.artist,
         year: data.year || "",
         imageUrl: data.imageUrl,
+        fullImageUrl: data.fullImageUrl || data.imageUrl,
         fallbackImageUrl: data.fallbackImageUrl || "",
       },
       comment: data.therapistText,
       searchKeywords: data.searchKeywords || searchKeywords || [],
       museumInfo: data.museumInfo,
+      voice: selectedVoice,
     }
   }
 
@@ -230,7 +260,9 @@ export function ArtOracle() {
           {status === "input" && (
             <InputState
               value={userText}
+              selectedVoice={selectedVoice}
               onChange={setUserText}
+              onVoiceChange={handleVoiceChange}
               onSubmit={handleSubmit}
             />
           )}
@@ -241,6 +273,7 @@ export function ArtOracle() {
             <ResultState
               painting={result.painting}
               comment={result.comment}
+              voice={result.voice}
               isRefreshing={isRefreshingSameMood}
               museumInfo={result.museumInfo}
               onReset={handleReset}
