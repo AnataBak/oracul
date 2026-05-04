@@ -5,6 +5,11 @@ import {
   type MuseumArtwork,
 } from "./museum-providers"
 import { requestGeminiText, type GeminiInlineImage } from "../gemini"
+import {
+  DEFAULT_ARTWORK_SELECTION_STRICTNESS,
+  isArtworkSelectionStrictness,
+  type ArtworkSelectionStrictness,
+} from "@/lib/artwork-selection-strictness"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 
 export const runtime = "nodejs"
@@ -122,6 +127,72 @@ function sanitizeSearchKeywords(value: unknown): string[] {
 
 function isVisualAnalysisEnabled(value: unknown): boolean {
   return value === true
+}
+
+function getSelectionStrictness(value: unknown): ArtworkSelectionStrictness {
+  return isArtworkSelectionStrictness(value) ? value : DEFAULT_ARTWORK_SELECTION_STRICTNESS
+}
+
+function getSoftExpansionTerms(userText: string): string[] {
+  const normalizedText = userText.toLowerCase()
+  const terms: string[] = []
+
+  if (/(пицц|ед[ауыо]|вкусн|обед|ужин|завтрак|десерт|есть|ел[аи]?|food|pizza|meal|dinner|lunch|taste|delicious|наслажд|удовольств|радост|кайф|довольн|pleasure|enjoy|joy|delight|satisfaction)/i.test(normalizedText)) {
+    terms.push("pleasure", "delight", "abundance", "warmth", "celebration", "joy")
+  }
+
+  if (/(спокой|тих|мягк|calm|quiet|peace|soft)/i.test(normalizedText)) {
+    terms.push("serenity", "soft light", "quiet", "garden", "landscape")
+  }
+
+  if (/(груст|печал|меланхол|одинок|sad|melancholy|lonely)/i.test(normalizedText)) {
+    terms.push("melancholy", "solitude", "evening", "interior", "quiet")
+  }
+
+  return terms
+}
+
+function getLiteralExpansionTerms(userText: string): string[] {
+  const normalizedText = userText.toLowerCase()
+  const terms: string[] = []
+
+  if (/(пицц|ед[ауыо]|вкусн|обед|ужин|завтрак|десерт|есть|ел[аи]?|food|pizza|meal|dinner|lunch|taste|delicious)/i.test(normalizedText)) {
+    terms.push("food", "meal", "feast", "table", "banquet", "still life", "bread", "fruit")
+  }
+
+  if (/(\bрек[аиеуой]\b|\bвод[ауыоей]\b|\bмор[еяюем]\b|\bокеан[а-я]*\b|river|water|sea|ocean)/i.test(normalizedText)) {
+    terms.push("river", "water", "sea", "boat", "landscape")
+  }
+
+  if (/(сон|спать|кровать|ноч|sleep|bed|night)/i.test(normalizedText)) {
+    terms.push("sleep", "bed", "night", "bedroom", "interior")
+  }
+
+  if (/(дом|комнат|уют|home|room|cozy)/i.test(normalizedText)) {
+    terms.push("home", "interior", "room", "domestic")
+  }
+
+  return terms
+}
+
+function applySelectionStrictnessToKeywords(
+  userText: string,
+  searchKeywords: string[],
+  strictness: ArtworkSelectionStrictness,
+): string[] {
+  if (strictness === "soft") {
+    return uniqueSearchTerms([...getSoftExpansionTerms(userText), ...searchKeywords], 12)
+  }
+
+  if (strictness === "literal") {
+    return uniqueSearchTerms([...getLiteralExpansionTerms(userText), ...searchKeywords], 10)
+  }
+
+  if (strictness === "precise") {
+    return uniqueSearchTerms(searchKeywords.slice(0, 8), 8)
+  }
+
+  return searchKeywords
 }
 
 function getVisualAnalysisInstructions(): string {
@@ -307,6 +378,7 @@ export async function POST(request: Request) {
       searchKeywords?: unknown
       oracleVoice?: unknown
       visualAnalysisEnabled?: unknown
+      selectionStrictness?: unknown
     }
 
     const userText =
@@ -327,14 +399,20 @@ export async function POST(request: Request) {
     const clientSearchKeywords = sanitizeSearchKeywords(body.searchKeywords)
     const oracleVoice = isOracleVoice(body.oracleVoice) ? body.oracleVoice : DEFAULT_ORACLE_VOICE
     const visualAnalysisEnabled = isVisualAnalysisEnabled(body.visualAnalysisEnabled)
-    const searchKeywords =
+    const selectionStrictness = getSelectionStrictness(body.selectionStrictness)
+    const baseSearchKeywords =
       clientSearchKeywords.length > 0 ? clientSearchKeywords : await buildKeywordCandidates(userText)
+    const searchKeywords = applySelectionStrictnessToKeywords(
+      userText,
+      baseSearchKeywords,
+      selectionStrictness,
+    )
     const artwork = await fetchArtworkFromMuseums(searchKeywords, {
       recentArtworkIds: Array.from(new Set([...clientRecentArtworkIds, ...recentArtworkIds])),
       recentArtworkSignatures: Array.from(
         new Set([...clientRecentArtworkSignatures, ...recentArtworkSignatures]),
       ),
-    })
+    }, selectionStrictness)
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 

@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react"
 import { Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DEFAULT_ARTWORK_SELECTION_STRICTNESS,
+  isArtworkSelectionStrictness,
+  type ArtworkSelectionStrictness,
+} from "@/lib/artwork-selection-strictness"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 import { InputState } from "./oracle/input-state"
 import { LoadingState } from "./oracle/loading-state"
@@ -13,6 +18,7 @@ export type OracleStatus = "input" | "loading" | "result"
 const RECENT_ARTWORK_STORAGE_KEY = "art-oracle-recent-artworks"
 const ORACLE_VOICE_STORAGE_KEY = "art-oracle-voice"
 const VISUAL_ANALYSIS_STORAGE_KEY = "art-oracle-visual-analysis"
+const SELECTION_STRICTNESS_STORAGE_KEY = "art-oracle-selection-strictness"
 const RECENT_ARTWORK_LIMIT = 100
 
 type ArtOracleResponse = {
@@ -122,17 +128,34 @@ function readSavedOracleVoice(): OracleVoice {
 
 function readSavedVisualAnalysisEnabled(): boolean {
   if (typeof window === "undefined") {
-    return false
+    return true
   }
 
-  return window.localStorage.getItem(VISUAL_ANALYSIS_STORAGE_KEY) === "true"
+  const savedValue = window.localStorage.getItem(VISUAL_ANALYSIS_STORAGE_KEY)
+
+  return savedValue ? savedValue === "true" : true
+}
+
+function readSavedSelectionStrictness(): ArtworkSelectionStrictness {
+  if (typeof window === "undefined") {
+    return DEFAULT_ARTWORK_SELECTION_STRICTNESS
+  }
+
+  const savedStrictness = window.localStorage.getItem(SELECTION_STRICTNESS_STORAGE_KEY)
+
+  return isArtworkSelectionStrictness(savedStrictness)
+    ? savedStrictness
+    : DEFAULT_ARTWORK_SELECTION_STRICTNESS
 }
 
 export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
   const [selectedVoice, setSelectedVoice] = useState<OracleVoice>(DEFAULT_ORACLE_VOICE)
-  const [visualAnalysisEnabled, setVisualAnalysisEnabled] = useState(false)
+  const [visualAnalysisEnabled, setVisualAnalysisEnabled] = useState(true)
+  const [selectionStrictness, setSelectionStrictness] = useState<ArtworkSelectionStrictness>(
+    DEFAULT_ARTWORK_SELECTION_STRICTNESS,
+  )
   const [isVisible, setIsVisible] = useState(false)
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
@@ -145,6 +168,7 @@ export function ArtOracle() {
   useEffect(() => {
     setSelectedVoice(readSavedOracleVoice())
     setVisualAnalysisEnabled(readSavedVisualAnalysisEnabled())
+    setSelectionStrictness(readSavedSelectionStrictness())
   }, [])
 
   const handleVoiceChange = (voice: OracleVoice) => {
@@ -163,6 +187,14 @@ export function ArtOracle() {
     }
   }
 
+  const handleSelectionStrictnessChange = (strictness: ArtworkSelectionStrictness) => {
+    setSelectionStrictness(strictness)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SELECTION_STRICTNESS_STORAGE_KEY, strictness)
+    }
+  }
+
   const requestArtwork = async (text: string, searchKeywords?: string[]): Promise<OracleResult> => {
     const recentArtworkMemory = readRecentArtworkMemory()
     const response = await fetch("/api/art", {
@@ -177,6 +209,7 @@ export function ArtOracle() {
         searchKeywords,
         oracleVoice: selectedVoice,
         visualAnalysisEnabled,
+        selectionStrictness,
       }),
     })
 
@@ -288,9 +321,11 @@ export function ArtOracle() {
               value={userText}
               selectedVoice={selectedVoice}
               visualAnalysisEnabled={visualAnalysisEnabled}
+              selectionStrictness={selectionStrictness}
               onChange={setUserText}
               onVoiceChange={handleVoiceChange}
               onVisualAnalysisChange={handleVisualAnalysisChange}
+              onSelectionStrictnessChange={handleSelectionStrictnessChange}
               onSubmit={handleSubmit}
             />
           )}
