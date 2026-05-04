@@ -1,7 +1,17 @@
 "use client"
 
-import { Eye, EyeOff, Palette, Send } from "lucide-react"
+import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
 
 interface InputStateProps {
@@ -23,6 +33,9 @@ export function InputState({
   onVisualAnalysisChange,
   onSubmit,
 }: InputStateProps) {
+  const selectedVoiceOption =
+    ORACLE_VOICE_OPTIONS.find((voice) => voice.id === selectedVoice) || ORACLE_VOICE_OPTIONS[0]
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.metaKey) {
       e.preventDefault()
@@ -66,82 +79,121 @@ export function InputState({
             autoFocus
           />
 
-          <div className="mt-5 space-y-3 text-left">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {ORACLE_VOICE_OPTIONS.map((voice) => {
-                const isSelected = voice.id === selectedVoice
-
-                return (
-                  <button
-                    key={voice.id}
-                    type="button"
-                    onClick={() => onVoiceChange(voice.id)}
-                    className={`rounded-xl border p-3 text-left transition-all duration-200 ${
-                      isSelected
-                        ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
-                        : "border-border bg-background/40 hover:border-primary/30 hover:bg-primary/5"
-                    }`}
-                  >
-                    <span className="mb-1 flex items-center gap-2 text-sm font-medium text-foreground">
-                      <span aria-hidden="true">{voice.icon}</span>
-                      {voice.label}
-                    </span>
-                    <span className="block text-xs leading-relaxed text-muted-foreground">
-                      {voice.description}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
-            className={`mt-4 flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200 ${
-              visualAnalysisEnabled
-                ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
-                : "border-border bg-background/40 hover:border-primary/30 hover:bg-primary/5"
-            }`}
-          >
-            <span className="mt-0.5 text-primary">
-              {visualAnalysisEnabled ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-            </span>
-            <span>
-              <span className="block text-sm font-medium text-foreground">
-                {visualAnalysisEnabled ? "Визуальный анализ включён" : "Визуальный анализ выключен"}
-              </span>
-              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                {visualAnalysisEnabled
-                  ? "Оракул посмотрит изображение картины и сверит его с музейным описанием."
-                  : "Оракул будет опираться только на музейную карточку, как раньше."}
-              </span>
-            </span>
-          </button>
-          
           {/* Разделитель */}
           <div className="h-px bg-border my-4" />
           
           {/* Нижняя часть карточки */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground text-sm">
               {value.length > 0 
                 ? `${value.length} символов` 
                 : "Опишите своё настроение или мысли"}
             </p>
             
-            <Button
-              onClick={onSubmit}
-              disabled={!value.trim()}
-              className="rounded-full px-6 h-11 bg-primary hover:bg-primary/90 
-                         text-primary-foreground transition-all duration-300 
-                         disabled:opacity-40 disabled:cursor-not-allowed
-                         hover:shadow-lg hover:shadow-primary/20"
-            >
-              <span className="mr-2">Найти картину</span>
-              <Send className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center justify-end gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={visualAnalysisEnabled ? "default" : "outline"}
+                    size="icon"
+                    aria-label={
+                      visualAnalysisEnabled
+                        ? "Выключить визуальный анализ"
+                        : "Включить визуальный анализ"
+                    }
+                    aria-pressed={visualAnalysisEnabled}
+                    className="rounded-full"
+                    onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+                  >
+                    {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-64 text-center">
+                  {visualAnalysisEnabled
+                    ? "Глаз открыт: Gemini посмотрит изображение картины."
+                    : "Глаз закрыт: ответ будет только по музейной карточке."}
+                </TooltipContent>
+              </Tooltip>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full px-3 text-muted-foreground hover:text-foreground"
+                  >
+                    <Settings2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Голос</span>
+                    <span aria-hidden="true">{selectedVoiceOption.icon}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-80 rounded-2xl border-border p-3">
+                  <div className="mb-3 px-1">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Выберите, как оракул прочитает найденную картину.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    {ORACLE_VOICE_OPTIONS.map((voice) => {
+                      const isSelected = voice.id === selectedVoice
+
+                      return (
+                        <div
+                          key={voice.id}
+                          className={`flex items-center gap-2 rounded-xl border p-1 transition-colors ${
+                            isSelected
+                              ? "border-primary/30 bg-primary/10"
+                              : "border-transparent hover:bg-primary/5"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => onVoiceChange(voice.id)}
+                            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
+                          >
+                            <span className="text-lg" aria-hidden="true">{voice.icon}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium text-foreground">{voice.label}</span>
+                            </span>
+                            {isSelected ? <Check className="h-4 w-4 text-primary" /> : null}
+                          </button>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                                aria-label={`Что значит ${voice.label}`}
+                              >
+                                <HelpCircle className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-64">
+                              {voice.description}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                onClick={onSubmit}
+                disabled={!value.trim()}
+                className="rounded-full px-6 h-11 bg-primary hover:bg-primary/90 
+                           text-primary-foreground transition-all duration-300 
+                           disabled:opacity-40 disabled:cursor-not-allowed
+                           hover:shadow-lg hover:shadow-primary/20"
+              >
+                <span className="mr-2">Найти картину</span>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
