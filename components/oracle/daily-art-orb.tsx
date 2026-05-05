@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type PointerEvent } from "react"
 import Image from "next/image"
 import { BookOpen, ExternalLink, Palette, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -96,6 +96,17 @@ export function DailyArtOrb() {
   const [isShowingTranslation, setIsShowingTranslation] = useState(false)
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState<string | null>(null)
+  const [isFullImageOpen, setIsFullImageOpen] = useState(false)
+  const [isFullImageLoaded, setIsFullImageLoaded] = useState(false)
+  const [fullImageZoom, setFullImageZoom] = useState(1)
+  const fullImageScrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const fullImagePanStateRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    scrollLeft: number
+    scrollTop: number
+  } | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -131,6 +142,18 @@ export function DailyArtOrb() {
       isActive = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!isFullImageOpen) {
+      setFullImageZoom(1)
+      setIsFullImageLoaded(false)
+      fullImagePanStateRef.current = null
+    }
+  }, [isFullImageOpen])
+
+  useEffect(() => {
+    fullImagePanStateRef.current = null
+  }, [fullImageZoom])
 
   const handleTranslateToggle = async () => {
     if (!dailyArt || !displayMuseumInfo) {
@@ -182,6 +205,58 @@ export function DailyArtOrb() {
     } finally {
       setIsTranslating(false)
     }
+  }
+
+  const handleFullImagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (fullImageZoom === 1 || event.button !== 0 || event.pointerType !== "mouse") {
+      return
+    }
+
+    const container = fullImageScrollContainerRef.current
+
+    if (
+      !container ||
+      (container.scrollWidth <= container.clientWidth && container.scrollHeight <= container.clientHeight)
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    fullImagePanStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    }
+  }
+
+  const handleFullImagePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const panState = fullImagePanStateRef.current
+    const container = fullImageScrollContainerRef.current
+
+    if (!panState || !container || panState.pointerId !== event.pointerId) {
+      return
+    }
+
+    event.preventDefault()
+    container.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX)
+    container.scrollTop = panState.scrollTop - (event.clientY - panState.startY)
+  }
+
+  const stopFullImagePan = (event: PointerEvent<HTMLDivElement>) => {
+    const panState = fullImagePanStateRef.current
+
+    if (!panState || panState.pointerId !== event.pointerId) {
+      return
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    fullImagePanStateRef.current = null
   }
 
   return (
@@ -238,7 +313,12 @@ export function DailyArtOrb() {
           </DialogDescription>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-            <div className="relative min-h-[300px] bg-muted md:min-h-[520px]">
+            <button
+              type="button"
+              className="relative min-h-[300px] cursor-zoom-in bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background md:min-h-[520px]"
+              aria-label="Открыть картину дня в большом размере"
+              onClick={() => setIsFullImageOpen(true)}
+            >
               {dialogImageUrl ? (
                 <Image
                   src={dialogImageUrl}
@@ -266,7 +346,7 @@ export function DailyArtOrb() {
               {!isDialogImageLoaded && dialogImageUrl ? (
                 <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted/80 to-muted/30" />
               ) : null}
-            </div>
+            </button>
 
             <div className="flex min-h-0 flex-col gap-5 overflow-y-auto bg-card p-5 sm:p-6">
               <div className="space-y-2 pr-8">
@@ -379,6 +459,73 @@ export function DailyArtOrb() {
             </div>
           </div>
         </DialogContent>
+      ) : null}
+
+      {dailyArt ? (
+        <Dialog open={isFullImageOpen} onOpenChange={setIsFullImageOpen}>
+          <DialogContent className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-none overflow-hidden border-border bg-background p-0 sm:h-[calc(100vh-2rem)] sm:w-[calc(100vw-2rem)]">
+            <DialogTitle className="sr-only">Увеличенная картина дня</DialogTitle>
+            <DialogDescription className="sr-only">
+              Увеличенный просмотр картины дня.
+            </DialogDescription>
+
+            <div className="absolute left-4 top-4 z-20 flex flex-wrap gap-2">
+              {[1, 2, 3].map((zoom) => (
+                <Button
+                  key={zoom}
+                  type="button"
+                  variant={fullImageZoom === zoom ? "default" : "secondary"}
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => setFullImageZoom(zoom)}
+                >
+                  {zoom}×
+                </Button>
+              ))}
+            </div>
+
+            <div
+              ref={fullImageScrollContainerRef}
+              className="h-full w-full overflow-auto bg-muted/40"
+            >
+              <div
+                className={`relative flex min-h-full min-w-full items-center justify-center p-4 ${
+                  fullImageZoom === 1 ? "" : "cursor-grab active:cursor-grabbing"
+                }`}
+                onPointerDown={handleFullImagePointerDown}
+                onPointerMove={handleFullImagePointerMove}
+                onPointerUp={stopFullImagePan}
+                onPointerCancel={stopFullImagePan}
+                onLostPointerCapture={stopFullImagePan}
+              >
+                <div
+                  className="relative transition-[width,height] duration-200"
+                  style={{
+                    width: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
+                    height: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
+                    minWidth: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
+                    minHeight: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
+                  }}
+                >
+                  <Image
+                    src={dailyArt.fullImageUrl || dailyArt.imageUrl}
+                    alt={`${dailyArt.title} — ${dailyArt.artist}`}
+                    fill
+                    sizes="100vw"
+                    className={`object-contain transition duration-700 ${
+                      isFullImageLoaded ? "opacity-100" : "opacity-0"
+                    }`}
+                    onLoad={() => setIsFullImageLoaded(true)}
+                    priority
+                  />
+                  {!isFullImageLoaded ? (
+                    <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted/80 to-muted/30" />
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </Dialog>
   )
