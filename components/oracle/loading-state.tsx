@@ -13,6 +13,7 @@ const loadingMessages = [
 ]
 const RANDOM_LOADING_ART_STORAGE_KEY = "art-oracle-random-loading-artworks"
 const RANDOM_LOADING_ART_LIMIT = 80
+const ARTWORK_AUTOPLAY_INTERVAL_MS = 5200
 
 type LoadingArtwork = {
   id: string
@@ -111,6 +112,7 @@ export function LoadingState({
   const [isVisible, setIsVisible] = useState(true)
   const [artworks, setArtworks] = useState<LoadingArtwork[]>([])
   const [activeArtworkIndex, setActiveArtworkIndex] = useState(0)
+  const [autoplayResetKey, setAutoplayResetKey] = useState(0)
   const touchStartXRef = useRef<number | null>(null)
   const activeArtwork = artworks[activeArtworkIndex]
 
@@ -185,10 +187,14 @@ export function LoadingState({
 
     const interval = setInterval(() => {
       setActiveArtworkIndex((prev) => (prev + 1) % artworks.length)
-    }, 2600)
+    }, ARTWORK_AUTOPLAY_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [artworks.length])
+  }, [artworks.length, autoplayResetKey])
+
+  const resetAutoplay = () => {
+    setAutoplayResetKey((prev) => prev + 1)
+  }
 
   const showPreviousArtwork = () => {
     if (artworks.length < 2) {
@@ -196,6 +202,7 @@ export function LoadingState({
     }
 
     setActiveArtworkIndex((prev) => (prev - 1 + artworks.length) % artworks.length)
+    resetAutoplay()
   }
 
   const showNextArtwork = () => {
@@ -204,6 +211,7 @@ export function LoadingState({
     }
 
     setActiveArtworkIndex((prev) => (prev + 1) % artworks.length)
+    resetAutoplay()
   }
 
   const handleTouchEnd = (clientX: number) => {
@@ -228,7 +236,10 @@ export function LoadingState({
   return (
     <div className="animate-fade-in flex min-h-[440px] flex-col items-center justify-center gap-5">
       <div className="text-center">
-        <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Пока оракул ищет вашу картину</p>
+        <h2 className="font-serif text-3xl text-foreground md:text-4xl">Загрузка</h2>
+        <p className="mt-2 text-xs uppercase tracking-[0.28em] text-muted-foreground">
+          Пока оракул ищет вашу картину
+        </p>
         <p
           className={`mt-2 text-sm text-foreground/80 transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-1 opacity-0"
@@ -304,7 +315,10 @@ export function LoadingState({
                         index === activeArtworkIndex ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
                       }`}
                       aria-label={`Показать случайную картину ${index + 1}`}
-                      onClick={() => setActiveArtworkIndex(index)}
+                      onClick={() => {
+                        setActiveArtworkIndex(index)
+                        resetAutoplay()
+                      }}
                     />
                   ))}
                 </div>
