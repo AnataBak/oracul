@@ -280,12 +280,12 @@ export function ResultState({
                       />
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-7xl overflow-hidden border-border bg-background/95 p-3 backdrop-blur sm:p-4">
+                  <DialogContent className="h-[calc(100vh-1rem)] !max-w-[calc(100vw-1rem)] overflow-hidden border-border bg-background/95 p-3 backdrop-blur sm:h-[calc(100vh-2rem)] sm:!max-w-[calc(100vw-2rem)] sm:p-4 xl:!max-w-[1440px]">
                     <DialogTitle className="sr-only">{painting.title}</DialogTitle>
                     <DialogDescription className="sr-only">
                       Увеличенное изображение картины
                     </DialogDescription>
-                    <div className="flex max-h-[calc(96vh-2rem)] flex-col gap-3 pt-8 sm:pt-0">
+                    <div className="flex h-full min-h-0 flex-col gap-3 pt-8 sm:pt-0">
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/80 px-3 py-2">
                         <p className="text-sm text-muted-foreground">
                           {imageZoom === 1 ? "Вписано в окно" : `Увеличение ${imageZoom}×`}
@@ -317,7 +317,7 @@ export function ResultState({
                             width={2400}
                             height={1800}
                             className={`mx-auto h-auto w-full object-contain ${
-                              imageZoom === 1 ? "max-h-[78vh]" : "max-h-none max-w-none"
+                              imageZoom === 1 ? "max-h-[calc(100vh-12rem)]" : "max-h-none max-w-none"
                             }`}
                             onError={() => {
                               if (currentFullImageUrl !== currentImageUrl) {
