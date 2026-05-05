@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, X } from "lucide-react"
+import { Check, Eye, EyeOff, HelpCircle, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -14,6 +14,7 @@ import {
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
 import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
+import { DailyArtOrb } from "./daily-art-orb"
 
 interface InputStateProps {
   value: string
@@ -148,7 +149,7 @@ export function InputState({
     : "Глаз закрыт: ответ строится только по музейной карточке, без передачи изображения в Gemini."
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && e.metaKey) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       onSubmit()
     }
@@ -156,13 +157,8 @@ export function InputState({
 
   return (
     <div className="animate-fade-in flex flex-col items-center text-center gap-10">
-      {/* Логотип/Иконка */}
-      <div className="relative">
-        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-primary/10 flex items-center justify-center">
-          <Palette className="w-10 h-10 md:w-12 md:h-12 text-primary" />
-        </div>
-        <div className="absolute -inset-2 rounded-full border border-primary/20 animate-pulse" />
-      </div>
+      {/* Картина дня в круге вместо логотипа */}
+      <DailyArtOrb />
 
       {/* Заголовок */}
       <div className="space-y-4">
