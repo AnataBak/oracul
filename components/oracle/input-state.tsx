@@ -37,14 +37,14 @@ function HelpButton({
   return (
     <button
       type="button"
-      className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+      className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground sm:p-2"
       aria-label={label}
       onClick={(event) => {
         event.stopPropagation()
         onClick()
       }}
     >
-      <HelpCircle className="h-4 w-4" />
+      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
     </button>
   )
 }
@@ -147,37 +147,39 @@ export function InputState({
                 : "Опишите своё настроение или мысли"}
             </p>
             
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant={visualAnalysisEnabled ? "default" : "outline"}
-                size="icon"
-                aria-label={
-                  visualAnalysisEnabled
-                    ? "Выключить визуальный анализ"
-                    : "Включить визуальный анализ"
-                }
-                aria-pressed={visualAnalysisEnabled}
-                className="rounded-full"
-                onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
-              >
-                {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              </Button>
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+              <div className="relative shrink-0">
+                <Button
+                  type="button"
+                  variant={visualAnalysisEnabled ? "default" : "outline"}
+                  size="icon"
+                  aria-label={
+                    visualAnalysisEnabled
+                      ? "Выключить визуальный анализ"
+                      : "Включить визуальный анализ"
+                  }
+                  aria-pressed={visualAnalysisEnabled}
+                  className="rounded-full"
+                  onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+                >
+                  {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </Button>
 
-              <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground"
-                    aria-label="Что значит глаз"
-                  >
-                    <HelpCircle className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-72 rounded-2xl border-border p-3">
-                  <HelpPanel text={eyeHelpText} onClose={() => setIsEyeHelpOpen(false)} />
-                </PopoverContent>
-              </Popover>
+                <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-primary/5 hover:text-foreground"
+                      aria-label="Что значит глаз"
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-72">
+                    <HelpPanel text={eyeHelpText} onClose={() => setIsEyeHelpOpen(false)} />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               <Popover
                 onOpenChange={(open) => {
@@ -198,7 +200,7 @@ export function InputState({
                     <span aria-hidden="true">{selectedStrictnessOption.icon}</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 rounded-2xl border-border p-3">
+                <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-96">
                   <div className="mb-3 px-1">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -258,7 +260,7 @@ export function InputState({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {ARTWORK_SELECTION_STRICTNESS_OPTIONS.map((option) => {
                       const isSelected = option.id === selectionStrictness
 
@@ -276,9 +278,9 @@ export function InputState({
                               onClick={() => onSelectionStrictnessChange(option.id)}
                               className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left"
                             >
-                              <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                <span aria-hidden="true">{option.icon}</span>
-                                {option.label}
+                              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                                <span className="shrink-0" aria-hidden="true">{option.icon}</span>
+                                <span className="min-w-0 truncate">{option.label}</span>
                               </span>
                             </button>
                             <HelpButton
