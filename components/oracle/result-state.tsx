@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type PointerEvent } from "react"
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
@@ -155,6 +155,15 @@ export function ResultState({
   const [isTranslating, setIsTranslating] = useState(false)
   const [isShowingTranslation, setIsShowingTranslation] = useState(false)
   const [translationError, setTranslationError] = useState<string | null>(null)
+  const imageScrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const imagePanStateRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    scrollLeft: number
+    scrollTop: number
+  } | null>(null)
+  const [isImagePanning, setIsImagePanning] = useState(false)
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
 
@@ -182,6 +191,11 @@ export function ResultState({
     setIsLiked(false)
     setImageZoom(1)
   }, [painting.fullImageUrl, painting.imageUrl])
+
+  useEffect(() => {
+    imagePanStateRef.current = null
+    setIsImagePanning(false)
+  }, [imageZoom])
 
   useEffect(() => {
     setDisplayMuseumInfo(museumInfo)
@@ -237,6 +251,60 @@ export function ResultState({
     } finally {
       setIsTranslating(false)
     }
+  }
+
+  const handleImagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (imageZoom === 1 || event.button !== 0 || event.pointerType !== "mouse") {
+      return
+    }
+
+    const container = imageScrollContainerRef.current
+
+    if (
+      !container ||
+      (container.scrollWidth <= container.clientWidth && container.scrollHeight <= container.clientHeight)
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    imagePanStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    }
+    setIsImagePanning(true)
+  }
+
+  const handleImagePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const panState = imagePanStateRef.current
+    const container = imageScrollContainerRef.current
+
+    if (!panState || !container || panState.pointerId !== event.pointerId) {
+      return
+    }
+
+    event.preventDefault()
+    container.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX)
+    container.scrollTop = panState.scrollTop - (event.clientY - panState.startY)
+  }
+
+  const stopImagePan = (event: PointerEvent<HTMLDivElement>) => {
+    const panState = imagePanStateRef.current
+
+    if (!panState || panState.pointerId !== event.pointerId) {
+      return
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    imagePanStateRef.current = null
+    setIsImagePanning(false)
   }
 
   return (
@@ -306,7 +374,17 @@ export function ResultState({
                         </div>
                       </div>
 
-                      <div className="min-h-0 flex-1 overflow-auto rounded-xl bg-black/5 p-2">
+                      <div
+                        ref={imageScrollContainerRef}
+                        className={`min-h-0 flex-1 overflow-auto rounded-xl bg-black/5 p-2 ${
+                          imageZoom === 1 ? "" : isImagePanning ? "cursor-grabbing select-none" : "cursor-grab"
+                        }`}
+                        onPointerDown={handleImagePointerDown}
+                        onPointerMove={handleImagePointerMove}
+                        onPointerUp={stopImagePan}
+                        onPointerCancel={stopImagePan}
+                        onPointerLeave={stopImagePan}
+                      >
                         <div
                           className="mx-auto transition-[width] duration-200"
                           style={{ width: imageZoom === 1 ? "100%" : `${imageZoom * 100}%` }}
@@ -324,6 +402,8 @@ export function ResultState({
                                 setCurrentFullImageUrl(currentImageUrl)
                               }
                             }}
+                            draggable={false}
+                            onDragStart={(event) => event.preventDefault()}
                             unoptimized
                           />
                         </div>
