@@ -166,6 +166,10 @@ export function ArtOracle() {
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
   const [uiError, setUiError] = useState<UiError | null>(null)
+  const [loadingRecentArtworkMemory, setLoadingRecentArtworkMemory] = useState<RecentArtworkMemory>({
+    ids: [],
+    signatures: [],
+  })
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100)
@@ -259,6 +263,7 @@ export function ArtOracle() {
     if (!userText.trim()) return
 
     setUiError(null)
+    setLoadingRecentArtworkMemory(readRecentArtworkMemory())
     setStatus("loading")
     try {
       setResult(await requestArtwork(userText))
@@ -362,7 +367,15 @@ export function ArtOracle() {
             </div>
           )}
 
-          {status === "loading" && <LoadingState />}
+          {status === "loading" && (
+            <LoadingState
+              recentArtworkMemory={loadingRecentArtworkMemory}
+              excludedArtworkIds={result?.museumInfo.artworkId ? [result.museumInfo.artworkId] : []}
+              excludedArtworkSignatures={
+                result?.museumInfo.artworkSignature ? [result.museumInfo.artworkSignature] : []
+              }
+            />
+          )}
 
           {status === "result" && result && (
             <div className="space-y-5">

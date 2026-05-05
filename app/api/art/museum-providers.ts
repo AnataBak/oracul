@@ -617,6 +617,41 @@ function selectArtworkFromTopCandidates(
   return stronglyRelevantCandidates[0]?.artwork || ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
 }
 
+export function selectRandomDisplayArtworks(
+  candidates: MuseumArtwork[],
+  recentArtworkSignatures: string[],
+  limit: number,
+): MuseumArtwork[] {
+  const seenSignatures = new Set<string>()
+  const uniqueCandidates = candidates.filter((artwork) => {
+    const signature = getArtworkSignature(artwork)
+
+    if (!artwork.imageUrl || seenSignatures.has(signature)) {
+      return false
+    }
+
+    seenSignatures.add(signature)
+    return true
+  })
+  const ranked = uniqueCandidates
+    .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
+    .map((artwork) => ({
+      artwork,
+      score: artworkQualityScore(artwork, []),
+      random: Math.random(),
+    }))
+    .sort((left, right) => right.score - left.score || right.random - left.random)
+  const fallbackRanked = uniqueCandidates
+    .map((artwork) => ({
+      artwork,
+      score: artworkQualityScore(artwork, []),
+      random: Math.random(),
+    }))
+    .sort((left, right) => right.score - left.score || right.random - left.random)
+
+  return (ranked.length > 0 ? ranked : fallbackRanked).slice(0, limit).map((item) => item.artwork)
+}
+
 function getEnglishNotation(items: LinkedArtNotation[] | undefined): string | null {
   if (!Array.isArray(items)) {
     return null
