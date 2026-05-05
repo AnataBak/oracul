@@ -187,43 +187,47 @@ export function DailyArtOrb() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "group relative h-20 w-20 overflow-hidden rounded-full bg-primary/10 md:h-24 md:w-24",
-            "flex items-center justify-center shadow-lg shadow-foreground/5 outline-none",
-            "transition-all duration-300 hover:scale-105 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          )}
-          aria-label="Открыть картину дня"
-        >
-          {dailyArt && imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={`Картина дня: ${dailyArt.title}`}
-              fill
-              sizes="96px"
-              className={`object-cover transition duration-700 group-hover:scale-110 ${
-                isImageLoaded ? "opacity-100" : "opacity-0"
-              }`}
-              onLoad={() => setIsImageLoaded(true)}
-              onError={() => {
-                if (dailyArt.fallbackImageUrl && imageUrl !== dailyArt.fallbackImageUrl) {
-                  setImageUrl(dailyArt.fallbackImageUrl)
-                  setIsImageLoaded(false)
-                  return
-                }
+        <div className="flex cursor-pointer flex-col items-center gap-2.5">
+          <div className="rounded-full p-[3px] ring-1 ring-border transition-all duration-300 hover:ring-primary/50">
+            <div
+              className={cn(
+                "group relative h-20 w-20 overflow-hidden rounded-full bg-primary/10 md:h-24 md:w-24",
+                "flex items-center justify-center shadow-lg shadow-foreground/5",
+                "transition-all duration-300 hover:scale-[1.03]",
+              )}
+              role="button"
+              tabIndex={0}
+              aria-label="Открыть картину дня"
+            >
+              {dailyArt && imageUrl ? (
+                <Image
+                  src={imageUrl}
+                  alt={`Картина дня: ${dailyArt.title}`}
+                  fill
+                  sizes="96px"
+                  className={`object-cover transition duration-700 group-hover:scale-110 ${
+                    isImageLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                  onLoad={() => setIsImageLoaded(true)}
+                  onError={() => {
+                    if (dailyArt.fallbackImageUrl && imageUrl !== dailyArt.fallbackImageUrl) {
+                      setImageUrl(dailyArt.fallbackImageUrl)
+                      setIsImageLoaded(false)
+                      return
+                    }
 
-                setImageUrl("")
-              }}
-            />
-          ) : (
-            <Palette className="h-10 w-10 text-primary md:h-12 md:w-12" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-          <span className="absolute bottom-1.5 rounded-full bg-card/90 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.16em] text-foreground shadow-sm backdrop-blur-sm">
-            день
+                    setImageUrl("")
+                  }}
+                />
+              ) : (
+                <Palette className="h-10 w-10 text-primary md:h-12 md:w-12" />
+              )}
+            </div>
+          </div>
+          <span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground">
+            Картина дня
           </span>
-        </button>
+        </div>
       </DialogTrigger>
 
       {dailyArt && displayMuseumInfo ? (
