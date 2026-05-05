@@ -114,6 +114,7 @@ export function LoadingState({
   const [activeArtworkIndex, setActiveArtworkIndex] = useState(0)
   const [autoplayResetKey, setAutoplayResetKey] = useState(0)
   const touchStartXRef = useRef<number | null>(null)
+  const fallbackAttemptedArtworkIdsRef = useRef<Set<string>>(new Set())
   const activeArtwork = artworks[activeArtworkIndex]
 
   useEffect(() => {
@@ -271,7 +272,11 @@ export function LoadingState({
                   className="animate-fade-in object-cover"
                   sizes="(max-width: 640px) 88vw, 384px"
                   onError={(event) => {
-                    if (activeArtwork.fallbackImageUrl) {
+                    if (
+                      activeArtwork.fallbackImageUrl &&
+                      !fallbackAttemptedArtworkIdsRef.current.has(activeArtwork.id)
+                    ) {
+                      fallbackAttemptedArtworkIdsRef.current.add(activeArtwork.id)
                       event.currentTarget.src = activeArtwork.fallbackImageUrl
                     }
                   }}
