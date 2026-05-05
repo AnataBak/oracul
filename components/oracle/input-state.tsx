@@ -145,8 +145,8 @@ export function InputState({
   const [openSettingsHelpId, setOpenSettingsHelpId] = useState<string | null>(null)
   const [isEyeHelpOpen, setIsEyeHelpOpen] = useState(false)
   const eyeHelpText = visualAnalysisEnabled
-    ? "Глаз открыт: Gemini получает изображение выбранной картины и сверяет его с музейным описанием."
-    : "Глаз закрыт: ответ строится только по музейной карточке, без передачи изображения в Gemini."
+    ? "Глаз открыт: нейросеть визуально оценивает выбранную картину и сверяет изображение с музейным описанием."
+    : "Глаз закрыт: поиск и ответ строятся только по музейному описанию, без визуальной оценки изображения."
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
