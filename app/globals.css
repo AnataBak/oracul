@@ -119,12 +119,25 @@
   }
 }
 
+@keyframes strictness-label-pan {
+  0%, 18%, 100% {
+    transform: translateX(0);
+  }
+  50%, 68% {
+    transform: translateX(var(--strictness-label-slide));
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.8s ease-out forwards;
 }
 
 .animate-pulse-text {
   animation: pulse-text 2s ease-in-out infinite;
+}
+
+.animate-strictness-label-pan {
+  animation: strictness-label-pan 4s ease-in-out infinite;
 }
 
 /* Стили для области ввода */
