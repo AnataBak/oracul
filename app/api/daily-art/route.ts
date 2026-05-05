@@ -21,8 +21,22 @@ const FIELDS = [
   "id",
   "title",
   "artist_title",
+  "artist_display",
   "image_id",
   "date_display",
+  "place_of_origin",
+  "style_title",
+  "classification_title",
+  "subject_titles",
+  "medium_display",
+  "dimensions",
+  "credit_line",
+  "main_reference_number",
+  "exhibition_history",
+  "short_description",
+  "description",
+  "publication_history",
+  "provenance_text",
   "thumbnail",
 ].join(",")
 
@@ -30,8 +44,22 @@ type ArtInstituteArtwork = {
   id: number
   title: string | null
   artist_title: string | null
+  artist_display: string | null
   image_id: string | null
   date_display: string | null
+  place_of_origin: string | null
+  style_title: string | null
+  classification_title: string | null
+  subject_titles: string[] | null
+  medium_display: string | null
+  dimensions: string | null
+  credit_line: string | null
+  main_reference_number: string | null
+  exhibition_history: string | null
+  short_description: string | null
+  description: string | null
+  publication_history: string | null
+  provenance_text: string | null
   thumbnail?: {
     lqip?: string | null
   } | null
@@ -58,6 +86,14 @@ function hashString(value: string) {
   return hash
 }
 
+function stripHtml(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  return value.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim() || null
+}
+
 function scoreArtwork(artwork: ArtInstituteArtwork) {
   let score = 0
 
@@ -75,6 +111,10 @@ function scoreArtwork(artwork: ArtInstituteArtwork) {
 
   if (artwork.date_display) {
     score += 1
+  }
+
+  if (artwork.short_description || artwork.description) {
+    score += 3
   }
 
   if (artwork.title && /fragment|sample|plate|tile|shard|vessel/i.test(artwork.title)) {
@@ -119,9 +159,26 @@ export async function GET() {
       artist: artwork.artist_title || "Неизвестный автор",
       year: artwork.date_display || "",
       imageUrl: `/api/art-image/${artwork.image_id}`,
+      fullImageUrl: `/api/art-image/${artwork.image_id}?size=full`,
       fallbackImageUrl: artwork.thumbnail?.lqip || "",
       artworkUrl: `https://www.artic.edu/artworks/${artwork.id}`,
       source: "Art Institute of Chicago",
+      museumInfo: {
+        source: "Art Institute of Chicago API",
+        artworkId: `artic:${artwork.id}`,
+        dateDisplay: artwork.date_display,
+        placeOfOrigin: artwork.place_of_origin,
+        artistDisplay: stripHtml(artwork.artist_display),
+        styleTitle: artwork.style_title,
+        classificationTitle: artwork.classification_title,
+        subjectTitles: Array.isArray(artwork.subject_titles) ? artwork.subject_titles : [],
+        mediumDisplay: artwork.medium_display,
+        dimensions: artwork.dimensions,
+        creditLine: artwork.credit_line,
+        shortDescription: stripHtml(artwork.short_description),
+        description: stripHtml(artwork.description),
+        artworkUrl: `https://www.artic.edu/artworks/${artwork.id}`,
+      },
     })
   } catch (error) {
     console.error("Daily artwork request failed:", error)
