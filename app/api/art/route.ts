@@ -160,7 +160,7 @@ function getLiteralExpansionTerms(userText: string): string[] {
     terms.push("food", "meal", "feast", "table", "banquet", "still life", "bread", "fruit")
   }
 
-  if (/(\bрек[аиеуой]\b|\bвод[ауыоей]\b|\bмор[еяюем]\b|\bокеан[а-я]*\b|river|water|sea|ocean)/i.test(normalizedText)) {
+  if (/(рек[аиеуой]|вод[ауыоей]|мор[еяюем]|океан[а-я]*|river|water|sea|ocean)/i.test(normalizedText)) {
     terms.push("river", "water", "sea", "boat", "landscape")
   }
 
