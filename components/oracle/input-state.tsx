@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,14 +37,14 @@ function HelpButton({
   return (
     <button
       type="button"
-      className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+      className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground sm:p-2"
       aria-label={label}
       onClick={(event) => {
         event.stopPropagation()
         onClick()
       }}
     >
-      <HelpCircle className="h-4 w-4" />
+      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
     </button>
   )
 }
@@ -70,6 +70,60 @@ function HelpPanel({
         </button>
       </div>
     </div>
+  )
+}
+
+function SlidingLabel({ text }: { text: string }) {
+  const containerRef = useRef<HTMLSpanElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [slideDistance, setSlideDistance] = useState(0)
+
+  useEffect(() => {
+    const updateSlideDistance = () => {
+      const container = containerRef.current
+      const label = textRef.current
+
+      if (!container || !label) {
+        return
+      }
+
+      setSlideDistance(Math.max(0, label.scrollWidth - container.clientWidth))
+    }
+
+    updateSlideDistance()
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSlideDistance)
+      return () => window.removeEventListener("resize", updateSlideDistance)
+    }
+
+    const resizeObserver = new ResizeObserver(updateSlideDistance)
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    if (textRef.current) {
+      resizeObserver.observe(textRef.current)
+    }
+
+    return () => resizeObserver.disconnect()
+  }, [text])
+
+  return (
+    <span ref={containerRef} className="block min-w-0 overflow-hidden whitespace-nowrap">
+      <span
+        ref={textRef}
+        className={slideDistance > 0 ? "inline-block animate-strictness-label-pan" : "inline-block"}
+        style={
+          slideDistance > 0
+            ? ({ "--strictness-label-slide": `-${slideDistance}px` } as CSSProperties)
+            : undefined
+        }
+      >
+        {text}
+      </span>
+    </span>
   )
 }
 
@@ -147,58 +201,59 @@ export function InputState({
                 : "Опишите своё настроение или мысли"}
             </p>
             
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant={visualAnalysisEnabled ? "default" : "outline"}
-                size="icon"
-                aria-label={
-                  visualAnalysisEnabled
-                    ? "Выключить визуальный анализ"
-                    : "Включить визуальный анализ"
-                }
-                aria-pressed={visualAnalysisEnabled}
-                className="rounded-full"
-                onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
-              >
-                {visualAnalysisEnabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              </Button>
-
-              <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground"
-                    aria-label="Что значит глаз"
-                  >
-                    <HelpCircle className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-72 rounded-2xl border-border p-3">
-                  <HelpPanel text={eyeHelpText} onClose={() => setIsEyeHelpOpen(false)} />
-                </PopoverContent>
-              </Popover>
-
-              <Popover
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setOpenSettingsHelpId(null)
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+                <Button
+                  type="button"
+                  variant={visualAnalysisEnabled ? "default" : "outline"}
+                  size="icon"
+                  aria-label={
+                    visualAnalysisEnabled
+                      ? "Выключить визуальный анализ"
+                      : "Включить визуальный анализ"
                   }
-                }}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full px-3 text-muted-foreground hover:text-foreground"
-                  >
-                    <Settings2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Настройки</span>
-                    <span aria-hidden="true">{selectedVoiceOption.icon}</span>
-                    <span aria-hidden="true">{selectedStrictnessOption.icon}</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-80 rounded-2xl border-border p-3">
+                  aria-pressed={visualAnalysisEnabled}
+                  className="size-8 rounded-full sm:size-9"
+                  onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
+                >
+                  {visualAnalysisEnabled ? <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                </Button>
+
+                <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground sm:p-2"
+                      aria-label="Что значит глаз"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-72">
+                    <HelpPanel text={eyeHelpText} onClose={() => setIsEyeHelpOpen(false)} />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setOpenSettingsHelpId(null)
+                    }
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 gap-1.5 rounded-full px-2 text-muted-foreground hover:text-foreground sm:h-9 sm:gap-2 sm:px-3"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Настройки</span>
+                      <span aria-hidden="true">{selectedVoiceOption.icon}</span>
+                      <span aria-hidden="true">{selectedStrictnessOption.icon}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-80">
                   <div className="mb-3 px-1">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -258,14 +313,14 @@ export function InputState({
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                     {ARTWORK_SELECTION_STRICTNESS_OPTIONS.map((option) => {
                       const isSelected = option.id === selectionStrictness
 
                       return (
                         <div key={option.id} className="space-y-2">
                           <div
-                            className={`flex items-center gap-1 rounded-xl border p-1 transition-colors ${
+                            className={`flex items-center gap-0.5 rounded-xl border p-1 transition-colors sm:gap-1 ${
                               isSelected
                                 ? "border-primary/30 bg-primary/10"
                                 : "border-border bg-background/40 hover:bg-primary/5"
@@ -274,11 +329,11 @@ export function InputState({
                             <button
                               type="button"
                               onClick={() => onSelectionStrictnessChange(option.id)}
-                              className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left"
+                              className="min-w-0 flex-1 rounded-lg px-1.5 py-2 text-left sm:px-2"
                             >
-                              <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                <span aria-hidden="true">{option.icon}</span>
-                                {option.label}
+                              <span className="flex min-w-0 items-center gap-1 text-xs font-medium text-foreground sm:gap-2 sm:text-sm">
+                                <span className="shrink-0" aria-hidden="true">{option.icon}</span>
+                                <SlidingLabel text={option.label} />
                               </span>
                             </button>
                             <HelpButton
@@ -300,14 +355,15 @@ export function InputState({
                       )
                     })}
                   </div>
-                </PopoverContent>
-              </Popover>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
               <Button
                 onClick={onSubmit}
                 disabled={!value.trim()}
-                className="rounded-full px-6 h-11 bg-primary hover:bg-primary/90 
-                           text-primary-foreground transition-all duration-300 
+                className="h-10 rounded-full px-4 text-sm bg-primary hover:bg-primary/90 
+                           text-primary-foreground transition-all duration-300 sm:h-11 sm:px-6 sm:text-base
                            disabled:opacity-40 disabled:cursor-not-allowed
                            hover:shadow-lg hover:shadow-primary/20"
               >
