@@ -118,14 +118,14 @@ function getSelectionNote(museumInfo: MuseumInfo, searchKeywords: string[]): str
 
 function getVisualAnalysisNote(visualAnalysisRequested: boolean, visualAnalysisUsed: boolean): string {
   if (visualAnalysisUsed) {
-    return "Визуальный анализ был включён: Gemini получила изображение работы вместе с музейной карточкой."
+    return "Визуальный анализ был включён: нейросеть смотрела изображение работы вместе с музейной карточкой."
   }
 
   if (visualAnalysisRequested) {
     return "Визуальный анализ был включён, но изображение не удалось безопасно подготовить. Ответ построен по музейной карточке."
   }
 
-  return "Визуальный анализ был выключен. Ответ построен по музейной карточке без передачи изображения в Gemini."
+  return "Визуальный анализ был выключен. Ответ построен по музейной карточке без визуальной оценки изображения."
 }
 
 export function ResultState({
