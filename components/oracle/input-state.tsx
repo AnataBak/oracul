@@ -14,6 +14,7 @@ import {
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
 import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
+import { DailyArtCard } from "./daily-art-card"
 
 interface InputStateProps {
   value: string
@@ -148,7 +149,7 @@ export function InputState({
     : "Глаз закрыт: ответ строится только по музейной карточке, без передачи изображения в Gemini."
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && e.metaKey) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       onSubmit()
     }
@@ -389,6 +390,8 @@ export function InputState({
           </button>
         ))}
       </div>
+
+      <DailyArtCard />
     </div>
   )
 }
