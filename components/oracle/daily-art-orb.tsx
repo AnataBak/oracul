@@ -463,59 +463,67 @@ export function DailyArtOrb() {
 
       {dailyArt ? (
         <Dialog open={isFullImageOpen} onOpenChange={setIsFullImageOpen}>
-          <DialogContent className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-none overflow-hidden border-border bg-background p-0 sm:h-[calc(100vh-2rem)] sm:w-[calc(100vw-2rem)]">
+          <DialogContent className="h-[calc(100vh-1rem)] !max-w-[calc(100vw-1rem)] overflow-hidden border-border bg-background/95 p-3 backdrop-blur sm:h-[calc(100vh-2rem)] sm:!max-w-[calc(100vw-2rem)] sm:p-4 xl:!max-w-[1440px]">
             <DialogTitle className="sr-only">Увеличенная картина дня</DialogTitle>
             <DialogDescription className="sr-only">
               Увеличенный просмотр картины дня.
             </DialogDescription>
 
-            <div className="absolute left-4 top-4 z-20 flex flex-wrap gap-2">
-              {[1, 2, 3].map((zoom) => (
-                <Button
-                  key={zoom}
-                  type="button"
-                  variant={fullImageZoom === zoom ? "default" : "secondary"}
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => setFullImageZoom(zoom)}
-                >
-                  {zoom}×
-                </Button>
-              ))}
-            </div>
+            <div className="flex h-full min-h-0 flex-col gap-3 pt-8 sm:pt-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background/80 px-3 py-2">
+                <p className="text-sm text-muted-foreground">
+                  {fullImageZoom === 1 ? "Вписано в окно" : `Увеличение ${fullImageZoom}×`}
+                </p>
+                <div className="flex gap-2">
+                  {[1, 1.5, 2, 3].map((zoom) => (
+                    <Button
+                      key={zoom}
+                      type="button"
+                      variant={fullImageZoom === zoom ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 rounded-full px-3"
+                      onClick={() => setFullImageZoom(zoom)}
+                    >
+                      {zoom}×
+                    </Button>
+                  ))}
+                </div>
+              </div>
 
-            <div
-              ref={fullImageScrollContainerRef}
-              className="h-full w-full overflow-auto bg-muted/40"
-            >
               <div
-                className={`relative flex min-h-full min-w-full items-center justify-center p-4 ${
+                ref={fullImageScrollContainerRef}
+                className={`min-h-0 flex-1 overflow-auto rounded-xl bg-black/5 p-2 ${
                   fullImageZoom === 1 ? "" : "cursor-grab active:cursor-grabbing"
                 }`}
                 onPointerDown={handleFullImagePointerDown}
                 onPointerMove={handleFullImagePointerMove}
                 onPointerUp={stopFullImagePan}
                 onPointerCancel={stopFullImagePan}
-                onLostPointerCapture={stopFullImagePan}
+                onPointerLeave={stopFullImagePan}
               >
                 <div
-                  className="relative transition-[width,height] duration-200"
-                  style={{
-                    width: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
-                    height: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
-                    minWidth: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
-                    minHeight: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%`,
-                  }}
+                  className="mx-auto transition-[width] duration-200"
+                  style={{ width: fullImageZoom === 1 ? "100%" : `${fullImageZoom * 100}%` }}
                 >
                   <Image
                     src={dailyArt.fullImageUrl || dailyArt.imageUrl}
                     alt={`${dailyArt.title} — ${dailyArt.artist}`}
-                    fill
-                    sizes="100vw"
-                    className={`object-contain transition duration-700 ${
+                    width={2400}
+                    height={1800}
+                    className={`mx-auto h-auto w-full object-contain ${
+                      fullImageZoom === 1 ? "max-h-[calc(100vh-12rem)]" : "max-h-none max-w-none"
+                    } ${
                       isFullImageLoaded ? "opacity-100" : "opacity-0"
                     }`}
                     onLoad={() => setIsFullImageLoaded(true)}
+                    onError={() => {
+                      if (dialogImageUrl !== dailyArt.imageUrl) {
+                        setDialogImageUrl(dailyArt.imageUrl)
+                      }
+                    }}
+                    draggable={false}
+                    onDragStart={(event) => event.preventDefault()}
+                    unoptimized
                     priority
                   />
                   {!isFullImageLoaded ? (
