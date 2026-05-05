@@ -22,6 +22,9 @@ const RANDOM_ART_KEYWORDS = [
   "night",
   "summer",
 ]
+const RANDOM_ART_LIMIT = 3
+const RANDOM_ART_KEYWORD_COUNT = 1
+const RANDOM_ART_PROVIDER_COUNT = 3
 
 type RandomArtItem = {
   id: string
@@ -91,11 +94,11 @@ export async function POST(request: Request) {
         ...sanitizeRecentValues(payload.excludeArtworkSignatures),
       ]),
     )
-    const keywords = shuffleArray(RANDOM_ART_KEYWORDS).slice(0, 2)
+    const keywords = shuffleArray(RANDOM_ART_KEYWORDS).slice(0, RANDOM_ART_KEYWORD_COUNT)
     const providerResults = await Promise.all(
       keywords.flatMap((keyword) =>
         shuffleArray(MUSEUM_PROVIDERS)
-          .slice(0, 3)
+          .slice(0, RANDOM_ART_PROVIDER_COUNT)
           .map(async (provider) => {
             try {
               return await provider.search(keyword, recentArtworkIds)
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
           }),
       ),
     )
-    const artworks = selectRandomDisplayArtworks(providerResults.flat(), recentArtworkSignatures, 5)
+    const artworks = selectRandomDisplayArtworks(providerResults.flat(), recentArtworkSignatures, RANDOM_ART_LIMIT)
 
     if (artworks.length === 0) {
       return NextResponse.json({ error: "No random artworks found" }, { status: 404 })
