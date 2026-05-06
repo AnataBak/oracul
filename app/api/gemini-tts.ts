@@ -1,7 +1,7 @@
 const GEMINI_TTS_MODEL_CHAIN = [
+  "gemini-2.5-flash-preview-tts",
   "gemini-3.1-flash-tts-preview",
   "gemini-2.5-pro-preview-tts",
-  "gemini-2.5-flash-preview-tts",
 ]
 
 const DEFAULT_VOICE_NAME = "Kore"
