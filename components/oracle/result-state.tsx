@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type PointerEvent } from "react"
+import { useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } from "react"
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
@@ -143,6 +143,7 @@ export function ResultState({
   const voiceOption = getOracleVoiceOption(voice)
   const [displayedText, setDisplayedText] = useState("")
   const [isImageLoaded, setIsImageLoaded] = useState(false)
+  const [imageSize, setImageSize] = useState({ width: 800, height: 600 })
   const [hasImageError, setHasImageError] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [imageZoom, setImageZoom] = useState(1)
@@ -187,6 +188,7 @@ export function ResultState({
     setCurrentImageUrl(painting.imageUrl)
     setCurrentFullImageUrl(painting.fullImageUrl || painting.imageUrl)
     setIsImageLoaded(false)
+    setImageSize({ width: 800, height: 600 })
     setHasImageError(false)
     setIsLiked(false)
     setImageZoom(1)
@@ -253,6 +255,19 @@ export function ResultState({
     }
   }
 
+  const handleArtworkImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget
+
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+      setImageSize({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      })
+    }
+
+    setIsImageLoaded(true)
+  }
+
   const handleImagePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (imageZoom === 1 || event.button !== 0 || event.pointerType !== "mouse") {
       return
@@ -311,28 +326,27 @@ export function ResultState({
     <div className="animate-fade-in">
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-12">
         <div className="flex flex-col">
-          <div className="relative overflow-hidden rounded-xl bg-card shadow-xl">
-            <div className="pointer-events-none absolute inset-0 z-10 rounded-xl border-8 border-accent/20" />
-
-            <div className="relative min-h-[320px] bg-muted/30">
+          <div className="relative overflow-hidden rounded-xl bg-card p-2 shadow-xl">
+            <div className="relative overflow-hidden rounded-lg border-8 border-accent/20 bg-muted/30">
               {!hasImageError ? (
                 <Dialog>
                   <DialogTrigger asChild>
                     <button
                       type="button"
                       className="block w-full cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+                      style={{ aspectRatio: `${imageSize.width} / ${imageSize.height}` }}
                       aria-label="Открыть картину в большом размере"
                       onClick={() => setImageZoom(1)}
                     >
                       <Image
                         src={currentImageUrl}
                         alt={`${painting.title} - ${painting.artist}`}
-                        width={800}
-                        height={600}
-                        className={`h-auto w-full object-cover transition-opacity duration-700 ${
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        className={`h-full w-full object-contain transition-opacity duration-700 ${
                           isImageLoaded ? "opacity-100" : "opacity-0"
                         }`}
-                        onLoad={() => setIsImageLoaded(true)}
+                        onLoad={handleArtworkImageLoad}
                         onError={() => {
                           if (painting.fallbackImageUrl && currentImageUrl !== painting.fallbackImageUrl) {
                             setCurrentImageUrl(painting.fallbackImageUrl)
