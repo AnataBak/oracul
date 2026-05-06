@@ -141,9 +141,6 @@ async function requestGeminiTTSModel(
               },
             },
           },
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
         },
       }),
       cache: "no-store",
