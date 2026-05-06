@@ -239,7 +239,7 @@ export function LoadingState({
       <div className="text-center">
         <h2 className="font-serif text-3xl text-foreground md:text-4xl">Загрузка</h2>
         <p className="mt-2 text-xs uppercase tracking-[0.28em] text-muted-foreground">
-          Пока оракул ищет вашу картину
+          Пока Оракул ищет вашу картину, посмотрите случайные работы из галереи
         </p>
         <p
           className={`mt-2 text-sm text-foreground/80 transition-all duration-300 ${
