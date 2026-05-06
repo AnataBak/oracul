@@ -47,7 +47,7 @@ async function requestGeminiTranslation(museumInfo: MuseumInfoPayload): Promise<
 JSON:
 ${JSON.stringify(museumInfo)}`
 
-  const content = await requestGeminiText(prompt, 0.1)
+  const content = await requestGeminiText(prompt, 0.1, { thinkingMode: "fast" })
 
   return JSON.parse(extractJsonObject(content)) as MuseumInfoPayload
 }

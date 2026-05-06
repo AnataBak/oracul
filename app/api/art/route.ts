@@ -314,6 +314,7 @@ async function buildKeywordCandidates(userText: string): Promise<string[]> {
 - Избегай слишком общих слов вроде abstract, dream, memory, light, portrait, если в тексте есть более конкретный образ.
 - Не больше 8 терминов.`,
     0.2,
+    { thinkingMode: "fast" },
   )
 
   const structuredKeywords = extractJsonArray(rawKeywords, "searchTerms")
@@ -358,7 +359,7 @@ ${museumFacts}
 ${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
   return {
-    text: await requestGeminiText(geminiPrompt, 0.7, image || undefined),
+    text: await requestGeminiText(geminiPrompt, 0.7, { image: image || undefined }),
     visualAnalysisUsed: Boolean(image),
   }
 }

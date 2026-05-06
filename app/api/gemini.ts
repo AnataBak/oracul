@@ -22,6 +22,23 @@ export type GeminiInlineImage = {
   data: string
 }
 
+type GeminiThinkingMode = "default" | "fast"
+
+type RequestGeminiTextOptions = {
+  image?: GeminiInlineImage
+  thinkingMode?: GeminiThinkingMode
+}
+
+type GeminiThinkingConfig = {
+  thinkingBudget?: number
+  thinkingLevel?: "minimal"
+}
+
+type GeminiGenerationConfig = {
+  temperature: number
+  thinkingConfig?: GeminiThinkingConfig
+}
+
 async function readErrorBody(response: Response): Promise<string> {
   const text = await response.text()
   return text || `Request failed with status ${response.status}`
@@ -54,13 +71,26 @@ function isGeminiFallbackError(error: unknown): error is Error {
   return error instanceof Error && error.name === "GeminiFallbackError"
 }
 
+function getFastThinkingConfig(model: string): GeminiThinkingConfig | null {
+  if (model.startsWith("gemini-2.5-")) {
+    return { thinkingBudget: 0 }
+  }
+
+  if (model.startsWith("gemini-3.")) {
+    return { thinkingLevel: "minimal" }
+  }
+
+  return null
+}
+
 async function requestGeminiModel(
   model: string,
   prompt: string,
   temperature: number,
-  image?: GeminiInlineImage,
+  options: RequestGeminiTextOptions = {},
 ): Promise<string> {
   let response: Response
+  const { image, thinkingMode = "default" } = options
   const parts = image
     ? [
         {
@@ -72,6 +102,14 @@ async function requestGeminiModel(
         { text: prompt },
       ]
     : [{ text: prompt }]
+  const generationConfig: GeminiGenerationConfig = {
+    temperature,
+  }
+  const thinkingConfig = thinkingMode === "fast" ? getFastThinkingConfig(model) : null
+
+  if (thinkingConfig) {
+    generationConfig.thinkingConfig = thinkingConfig
+  }
 
   try {
     response = await fetch(buildGeminiUrl(model), {
@@ -85,9 +123,7 @@ async function requestGeminiModel(
             parts,
           },
         ],
-        generationConfig: {
-          temperature,
-        },
+        generationConfig,
       }),
       cache: "no-store",
     })
@@ -125,7 +161,7 @@ async function requestGeminiModel(
 export async function requestGeminiText(
   prompt: string,
   temperature: number,
-  image?: GeminiInlineImage,
+  options: RequestGeminiTextOptions = {},
 ): Promise<string> {
   const failures: string[] = []
 
@@ -133,7 +169,7 @@ export async function requestGeminiText(
     const model = GEMINI_MODEL_CHAIN[index]
 
     try {
-      return await requestGeminiModel(model, prompt, temperature, image)
+      return await requestGeminiModel(model, prompt, temperature, options)
     } catch (error) {
       if (!isGeminiFallbackError(error)) {
         throw error
