@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requestGeminiTTS } from "../gemini-tts"
 
 export const runtime = "nodejs"
+export const preferredRegion = "fra1"
 
 const MAX_TEXT_LENGTH = 4000
 
