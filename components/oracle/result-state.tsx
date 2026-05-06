@@ -169,6 +169,21 @@ export function ResultState({
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
   const tts = useOracleTTS({ text: comment })
+  const ttsDebugNote = (() => {
+    if (tts.status === "loading" && !tts.lastModelUsed) {
+      return "Озвучка генерируется. Используется первая доступная модель из цепочки фолбэков."
+    }
+
+    if (tts.lastModelUsed) {
+      return `Ответила модель: ${tts.lastModelUsed}. Цепочка фолбэков: gemini-3.1-flash-tts-preview → gemini-2.5-pro-preview-tts → gemini-2.5-flash-preview-tts.`
+    }
+
+    if (tts.status === "error" && tts.errorMessage) {
+      return `Озвучка недоступна: ${tts.errorMessage}`
+    }
+
+    return "Озвучка ещё не использовалась. Модель будет видна после первого нажатия «Прослушать голосом»."
+  })()
 
   const ttsButtonContent = (() => {
     switch (tts.status) {
@@ -561,6 +576,7 @@ export function ResultState({
                       <div className="space-y-4 rounded-2xl border border-border bg-background/50 p-4">
                         <InfoSection title="Как подбиралась работа" value={selectionNote} />
                         <InfoSection title="Визуальный анализ" value={visualAnalysisNote} />
+                        <InfoSection title="Голос (TTS)" value={ttsDebugNote} />
                       </div>
 
                       <a

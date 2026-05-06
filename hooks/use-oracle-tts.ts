@@ -8,6 +8,7 @@ interface UseOracleTTSResult {
   status: OracleTTSStatus
   errorMessage: string | null
   isAvailable: boolean
+  lastModelUsed: string | null
   toggle: () => void
   reset: () => void
 }
@@ -15,9 +16,15 @@ interface UseOracleTTSResult {
 interface UseOracleTTSOptions {
   text: string
   voice?: string
+  onModelUsed?: (model: string) => void
 }
 
-async function fetchTTSBlob(text: string, voice?: string): Promise<Blob> {
+interface TTSFetchResult {
+  blob: Blob
+  modelUsed: string | null
+}
+
+async function fetchTTSBlob(text: string, voice?: string): Promise<TTSFetchResult> {
   const response = await fetch("/api/tts", {
     method: "POST",
     headers: {
@@ -43,17 +50,26 @@ async function fetchTTSBlob(text: string, voice?: string): Promise<Blob> {
     throw new Error(message)
   }
 
-  return response.blob()
+  const modelUsed = response.headers.get("X-Gemini-Model")
+  const blob = await response.blob()
+
+  return { blob, modelUsed }
 }
 
-export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTSResult {
+export function useOracleTTS({ text, voice, onModelUsed }: UseOracleTTSOptions): UseOracleTTSResult {
   const [status, setStatus] = useState<OracleTTSStatus>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [lastModelUsed, setLastModelUsed] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const objectUrlRef = useRef<string | null>(null)
   const cachedBlobRef = useRef<Blob | null>(null)
   const cachedKeyRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
+  const onModelUsedRef = useRef(onModelUsed)
+
+  useEffect(() => {
+    onModelUsedRef.current = onModelUsed
+  }, [onModelUsed])
 
   const trimmedText = text.trim()
   const isAvailable = trimmedText.length > 0
@@ -83,6 +99,7 @@ export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTS
     cachedKeyRef.current = null
     setStatus("idle")
     setErrorMessage(null)
+    setLastModelUsed(null)
   }, [stopAudio])
 
   useEffect(() => {
@@ -93,6 +110,7 @@ export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTS
       cachedKeyRef.current = null
       setStatus("idle")
       setErrorMessage(null)
+      setLastModelUsed(null)
     }
   }, [cacheKey, stopAudio])
 
@@ -170,7 +188,7 @@ export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTS
     setErrorMessage(null)
 
     try {
-      const blob = await fetchTTSBlob(trimmedText, voice)
+      const { blob, modelUsed } = await fetchTTSBlob(trimmedText, voice)
 
       if (requestId !== requestIdRef.current) {
         return
@@ -178,6 +196,12 @@ export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTS
 
       cachedBlobRef.current = blob
       cachedKeyRef.current = cacheKey
+
+      if (modelUsed) {
+        setLastModelUsed(modelUsed)
+        onModelUsedRef.current?.(modelUsed)
+      }
+
       playBlob(blob)
     } catch (error) {
       if (requestId !== requestIdRef.current) {
@@ -227,6 +251,7 @@ export function useOracleTTS({ text, voice }: UseOracleTTSOptions): UseOracleTTS
     status,
     errorMessage,
     isAvailable,
+    lastModelUsed,
     toggle,
     reset,
   }
