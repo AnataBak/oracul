@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } from "react"
 import Image from "next/image"
-import { BookOpen, ExternalLink, Heart, RefreshCw, Share2 } from "lucide-react"
+import { BookOpen, ExternalLink, Heart, Loader2, Pause, Play, RefreshCw, Share2, Volume2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
 import { Button } from "@/components/ui/button"
+import { useOracleTTS } from "@/hooks/use-oracle-tts"
 import {
   Dialog,
   DialogContent,
@@ -167,6 +168,52 @@ export function ResultState({
   const [isImagePanning, setIsImagePanning] = useState(false)
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
+  const tts = useOracleTTS({ text: comment })
+  const ttsDebugNote = (() => {
+    if (tts.status === "loading" && !tts.lastModelUsed) {
+      return "Озвучка генерируется. Используется первая доступная модель из цепочки фолбэков."
+    }
+
+    if (tts.lastModelUsed) {
+      return `Ответила модель: ${tts.lastModelUsed}. Цепочка фолбэков: gemini-3.1-flash-tts-preview → gemini-2.5-pro-preview-tts → gemini-2.5-flash-preview-tts.`
+    }
+
+    if (tts.status === "error" && tts.errorMessage) {
+      return `Озвучка недоступна: ${tts.errorMessage}`
+    }
+
+    return "Озвучка ещё не использовалась. Модель будет видна после первого нажатия «Прослушать голосом»."
+  })()
+
+  const ttsButtonContent = (() => {
+    switch (tts.status) {
+      case "loading":
+        return {
+          icon: <Loader2 className="h-4 w-4 animate-spin" />,
+          label: "Голос собирается...",
+        }
+      case "playing":
+        return {
+          icon: <Pause className="h-4 w-4" />,
+          label: "Пауза",
+        }
+      case "paused":
+        return {
+          icon: <Play className="h-4 w-4" />,
+          label: "Продолжить",
+        }
+      case "error":
+        return {
+          icon: <Volume2 className="h-4 w-4" />,
+          label: "Попробовать снова",
+        }
+      default:
+        return {
+          icon: <Volume2 className="h-4 w-4" />,
+          label: "Прослушать голосом",
+        }
+    }
+  })()
 
   useEffect(() => {
     setDisplayedText("")
@@ -529,6 +576,7 @@ export function ResultState({
                       <div className="space-y-4 rounded-2xl border border-border bg-background/50 p-4">
                         <InfoSection title="Как подбиралась работа" value={selectionNote} />
                         <InfoSection title="Визуальный анализ" value={visualAnalysisNote} />
+                        <InfoSection title="Голос (TTS)" value={ttsDebugNote} />
                       </div>
 
                       <a
@@ -577,6 +625,23 @@ export function ResultState({
                 <span aria-hidden="true">{voiceOption.icon}</span>
                 {voiceOption.label}
               </span>
+            </div>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 rounded-full border-primary/30 hover:border-primary hover:bg-primary/10"
+                onClick={tts.toggle}
+                disabled={!tts.isAvailable || tts.status === "loading"}
+                aria-label={ttsButtonContent.label}
+              >
+                {ttsButtonContent.icon}
+                {ttsButtonContent.label}
+              </Button>
+              {tts.status === "error" && tts.errorMessage ? (
+                <p className="text-xs text-destructive">{tts.errorMessage}</p>
+              ) : null}
             </div>
             <p className="whitespace-pre-line text-base leading-relaxed text-foreground md:text-lg">
               {displayedText}
