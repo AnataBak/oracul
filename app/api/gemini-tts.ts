@@ -1,3 +1,5 @@
+import { Mp3Encoder } from "@breezystack/lamejs"
+
 const GEMINI_TTS_MODEL_CHAIN = [
   "gemini-2.5-flash-preview-tts",
   "gemini-3.1-flash-tts-preview",
@@ -7,7 +9,8 @@ const GEMINI_TTS_MODEL_CHAIN = [
 const DEFAULT_VOICE_NAME = "Kore"
 const DEFAULT_SAMPLE_RATE = 24000
 const DEFAULT_CHANNELS = 1
-const DEFAULT_BITS_PER_SAMPLE = 16
+const MP3_BITRATE_KBPS = 64
+const MP3_SAMPLES_PER_FRAME = 1152
 
 type GeminiInlineDataField = {
   mimeType?: string
@@ -85,32 +88,42 @@ function parseSampleRate(mimeType: string): number {
   return DEFAULT_SAMPLE_RATE
 }
 
-function buildWavBuffer(
+function pcmBufferToInt16Samples(pcmData: Buffer): Int16Array {
+  const samples = new Int16Array(pcmData.length / 2)
+
+  for (let i = 0; i < samples.length; i += 1) {
+    samples[i] = pcmData.readInt16LE(i * 2)
+  }
+
+  return samples
+}
+
+function encodePcmToMp3(
   pcmData: Buffer,
   sampleRate: number,
   channels: number,
-  bitsPerSample: number,
+  bitrateKbps: number,
 ): Buffer {
-  const byteRate = (sampleRate * channels * bitsPerSample) / 8
-  const blockAlign = (channels * bitsPerSample) / 8
-  const dataSize = pcmData.length
+  const samples = pcmBufferToInt16Samples(pcmData)
+  const encoder = new Mp3Encoder(channels, sampleRate, bitrateKbps)
+  const chunks: Buffer[] = []
 
-  const header = Buffer.alloc(44)
-  header.write("RIFF", 0)
-  header.writeUInt32LE(36 + dataSize, 4)
-  header.write("WAVE", 8)
-  header.write("fmt ", 12)
-  header.writeUInt32LE(16, 16)
-  header.writeUInt16LE(1, 20)
-  header.writeUInt16LE(channels, 22)
-  header.writeUInt32LE(sampleRate, 24)
-  header.writeUInt32LE(byteRate, 28)
-  header.writeUInt16LE(blockAlign, 32)
-  header.writeUInt16LE(bitsPerSample, 34)
-  header.write("data", 36)
-  header.writeUInt32LE(dataSize, 40)
+  for (let offset = 0; offset < samples.length; offset += MP3_SAMPLES_PER_FRAME) {
+    const slice = samples.subarray(offset, offset + MP3_SAMPLES_PER_FRAME)
+    const encoded = encoder.encodeBuffer(slice)
 
-  return Buffer.concat([header, pcmData])
+    if (encoded.length > 0) {
+      chunks.push(Buffer.from(encoded))
+    }
+  }
+
+  const tail = encoder.flush()
+
+  if (tail.length > 0) {
+    chunks.push(Buffer.from(tail))
+  }
+
+  return Buffer.concat(chunks)
 }
 
 async function requestGeminiTTSModel(
@@ -187,16 +200,22 @@ async function requestGeminiTTSModel(
   }
 
   const sampleRate = parseSampleRate(sourceMimeType)
-  const wavBuffer = buildWavBuffer(
+  const mp3Buffer = encodePcmToMp3(
     pcmBuffer,
     sampleRate,
     DEFAULT_CHANNELS,
-    DEFAULT_BITS_PER_SAMPLE,
+    MP3_BITRATE_KBPS,
   )
 
+  if (mp3Buffer.length === 0) {
+    const error = new Error(`Gemini TTS produced zero-byte MP3 for ${model}`)
+    error.name = "GeminiTTSFallbackError"
+    throw error
+  }
+
   return {
-    buffer: wavBuffer,
-    mimeType: "audio/wav",
+    buffer: mp3Buffer,
+    mimeType: "audio/mpeg",
     modelUsed: model,
   }
 }
