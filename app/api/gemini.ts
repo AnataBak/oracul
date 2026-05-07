@@ -54,6 +54,11 @@ function isGeminiFallbackError(error: unknown): error is Error {
   return error instanceof Error && error.name === "GeminiFallbackError"
 }
 
+export interface GeminiTextResult {
+  text: string
+  modelUsed: string
+}
+
 async function requestGeminiModel(
   model: string,
   prompt: string,
@@ -126,14 +131,15 @@ export async function requestGeminiText(
   prompt: string,
   temperature: number,
   image?: GeminiInlineImage,
-): Promise<string> {
+): Promise<GeminiTextResult> {
   const failures: string[] = []
 
   for (let index = 0; index < GEMINI_MODEL_CHAIN.length; index += 1) {
     const model = GEMINI_MODEL_CHAIN[index]
 
     try {
-      return await requestGeminiModel(model, prompt, temperature, image)
+      const text = await requestGeminiModel(model, prompt, temperature, image)
+      return { text, modelUsed: model }
     } catch (error) {
       if (!isGeminiFallbackError(error)) {
         throw error

@@ -39,6 +39,7 @@ type ArtOracleResponse = {
   searchKeywords?: string[]
   visualAnalysisRequested?: boolean
   visualAnalysisUsed?: boolean
+  geminiTextModel?: string
   museumInfo: {
     source: string
     artworkId: string
@@ -73,6 +74,7 @@ type OracleResult = {
   voice: OracleVoice
   visualAnalysisRequested: boolean
   visualAnalysisUsed: boolean
+  geminiTextModel?: string
 }
 
 type RecentArtworkMemory = {
@@ -257,6 +259,10 @@ export function ArtOracle() {
       voice: selectedVoice,
       visualAnalysisRequested: Boolean(data.visualAnalysisRequested),
       visualAnalysisUsed: Boolean(data.visualAnalysisUsed),
+      geminiTextModel:
+        typeof data.geminiTextModel === "string" && data.geminiTextModel.length > 0
+          ? data.geminiTextModel
+          : undefined,
     }
   }
 
@@ -400,6 +406,7 @@ export function ArtOracle() {
                 museumInfo={result.museumInfo}
                 visualAnalysisRequested={result.visualAnalysisRequested}
                 visualAnalysisUsed={result.visualAnalysisUsed}
+                geminiTextModel={result.geminiTextModel}
                 searchKeywords={result.searchKeywords}
                 onReset={handleReset}
                 onRefreshSameMood={handleRefreshSameMood}

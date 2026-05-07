@@ -299,7 +299,7 @@ function getVoicePrompt(voice: OracleVoice): string {
 }
 
 async function buildKeywordCandidates(userText: string): Promise<string[]> {
-  const rawKeywords = await requestGeminiText(
+  const { text: rawKeywords } = await requestGeminiText(
     `Прочитай этот текст: "${userText}".
 Верни строго JSON без markdown и пояснений:
 {
@@ -333,6 +333,7 @@ async function requestGeminiArtworkResponse(
 ): Promise<{
   text: string
   visualAnalysisUsed: boolean
+  modelUsed: string
 }> {
   const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
   const museumFacts = [
@@ -357,9 +358,12 @@ ${museumFacts}
 
 ${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
+  const { text, modelUsed } = await requestGeminiText(geminiPrompt, 0.7, image || undefined)
+
   return {
-    text: await requestGeminiText(geminiPrompt, 0.7, image || undefined),
+    text,
     visualAnalysisUsed: Boolean(image),
+    modelUsed,
   }
 }
 
@@ -434,6 +438,7 @@ export async function POST(request: Request) {
       searchKeywords,
       visualAnalysisRequested: visualAnalysisEnabled,
       visualAnalysisUsed: geminiArtworkResponse.visualAnalysisUsed,
+      geminiTextModel: geminiArtworkResponse.modelUsed,
       museumInfo: {
         source: artwork.source,
         artworkId: artwork.id,

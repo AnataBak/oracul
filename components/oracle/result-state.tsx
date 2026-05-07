@@ -58,6 +58,7 @@ interface ResultStateProps {
   museumInfo: MuseumInfo
   visualAnalysisRequested: boolean
   visualAnalysisUsed: boolean
+  geminiTextModel?: string
   searchKeywords: string[]
   onReset: () => void
   onRefreshSameMood: () => void
@@ -137,6 +138,7 @@ export function ResultState({
   museumInfo,
   visualAnalysisRequested,
   visualAnalysisUsed,
+  geminiTextModel,
   searchKeywords,
   onReset,
   onRefreshSameMood,
@@ -168,6 +170,9 @@ export function ResultState({
   const [isImagePanning, setIsImagePanning] = useState(false)
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
+  const geminiTextModelNote = geminiTextModel
+    ? `Ответила модель: ${geminiTextModel}. Цепочка фолбэков: gemini-2.5-flash-lite → gemini-2.5-flash → gemini-3.1-flash-lite-preview → gemini-2.0-flash → gemini-2.0-flash-lite.`
+    : "Имя модели не вернулось — возможно, ответ пришёл из старого деплоя. Запроси новую картину, чтобы появилось значение."
   const tts = useOracleTTS({ text: comment })
   const ttsDebugNote = (() => {
     if (tts.status === "loading" && !tts.lastModelUsed) {
@@ -576,6 +581,7 @@ export function ResultState({
                       <div className="space-y-4 rounded-2xl border border-border bg-background/50 p-4">
                         <InfoSection title="Как подбиралась работа" value={selectionNote} />
                         <InfoSection title="Визуальный анализ" value={visualAnalysisNote} />
+                        <InfoSection title="Текстовый ответ (Gemini)" value={geminiTextModelNote} />
                         <InfoSection title="Голос (TTS)" value={ttsDebugNote} />
                       </div>
 
