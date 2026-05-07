@@ -5,7 +5,6 @@ export const GEMINI_TEXT_MODEL_CHAIN = [
   "gemini-3-flash-preview",
   "gemma-4-31b-it",
   "gemma-4-26b-a4b-it",
-  "gemma-3-27b-it",
 ] as const
 
 export type GeminiTextModel = (typeof GEMINI_TEXT_MODEL_CHAIN)[number]
