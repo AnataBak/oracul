@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { requestGeminiTTS } from "../gemini-tts"
+import { sanitizeGeminiTtsChain } from "@/lib/gemini-tts-models"
 
 export const runtime = "nodejs"
 export const preferredRegion = "fra1"
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       text?: string
       voice?: string
+      ttsModelChain?: unknown
     }
 
     const rawText = body.text
@@ -61,7 +63,10 @@ export async function POST(request: Request) {
       ? body.voice.trim()
       : undefined
 
-    const result = await requestGeminiTTS(cleanedText, voiceName)
+    const sanitizedTtsChain = sanitizeGeminiTtsChain(body.ttsModelChain)
+    const ttsModelChain = sanitizedTtsChain ?? undefined
+
+    const result = await requestGeminiTTS(cleanedText, voiceName, ttsModelChain)
     const arrayBuffer = result.buffer.buffer.slice(
       result.buffer.byteOffset,
       result.buffer.byteOffset + result.buffer.byteLength,

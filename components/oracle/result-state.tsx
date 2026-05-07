@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } f
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, Loader2, Pause, Play, RefreshCw, Share2, Volume2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
-import { GEMINI_TTS_MODEL_CHAIN } from "@/lib/gemini-tts-models"
+import { useGeminiTextChain, useGeminiTtsChain } from "@/lib/model-preferences"
 import { Button } from "@/components/ui/button"
 import { useOracleTTS } from "@/hooks/use-oracle-tts"
+import { ModelChainSettings } from "./model-chain-settings"
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ interface ResultStateProps {
   museumInfo: MuseumInfo
   visualAnalysisRequested: boolean
   visualAnalysisUsed: boolean
+  geminiTextModel?: string
   searchKeywords: string[]
   onReset: () => void
   onRefreshSameMood: () => void
@@ -138,6 +140,7 @@ export function ResultState({
   museumInfo,
   visualAnalysisRequested,
   visualAnalysisUsed,
+  geminiTextModel,
   searchKeywords,
   onReset,
   onRefreshSameMood,
@@ -170,7 +173,13 @@ export function ResultState({
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
   const tts = useOracleTTS({ text: comment })
-  const ttsChainText = GEMINI_TTS_MODEL_CHAIN.join(" → ")
+  const textChain = useGeminiTextChain()
+  const ttsChain = useGeminiTtsChain()
+  const textChainText = textChain.chain.join(" → ")
+  const ttsChainText = ttsChain.chain.join(" → ")
+  const geminiTextModelNote = geminiTextModel
+    ? `Ответила модель: ${geminiTextModel}. Цепочка фолбэков: ${textChainText}.`
+    : `Имя модели не вернулось — возможно, ответ пришёл из старого деплоя. Цепочка фолбэков: ${textChainText}.`
   const ttsDebugNote = (() => {
     if (tts.status === "loading" && !tts.lastModelUsed) {
       return "Озвучка генерируется. Используется первая доступная модель из цепочки фолбэков."
@@ -184,7 +193,7 @@ export function ResultState({
       return `Озвучка недоступна: ${tts.errorMessage}`
     }
 
-    return "Озвучка ещё не использовалась. Модель будет видна после первого нажатия «Прослушать голосом»."
+    return `Озвучка ещё не использовалась. Цепочка фолбэков: ${ttsChainText}. Модель будет видна после первого нажатия «Прослушать голосом».`
   })()
 
   const ttsButtonContent = (() => {
@@ -578,7 +587,11 @@ export function ResultState({
                       <div className="space-y-4 rounded-2xl border border-border bg-background/50 p-4">
                         <InfoSection title="Как подбиралась работа" value={selectionNote} />
                         <InfoSection title="Визуальный анализ" value={visualAnalysisNote} />
+                        <InfoSection title="Текстовый ответ (Gemini)" value={geminiTextModelNote} />
                         <InfoSection title="Голос (TTS)" value={ttsDebugNote} />
+                        <div className="flex justify-end pt-1">
+                          <ModelChainSettings />
+                        </div>
                       </div>
 
                       <a

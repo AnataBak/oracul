@@ -218,11 +218,14 @@ async function requestGeminiTTSModel(
 export async function requestGeminiTTS(
   text: string,
   voiceName: string = DEFAULT_VOICE_NAME,
+  modelChain?: readonly string[],
 ): Promise<TTSResult> {
   const failures: string[] = []
+  const effectiveChain =
+    modelChain && modelChain.length > 0 ? modelChain : GEMINI_TTS_MODEL_CHAIN
 
-  for (let index = 0; index < GEMINI_TTS_MODEL_CHAIN.length; index += 1) {
-    const model = GEMINI_TTS_MODEL_CHAIN[index]
+  for (let index = 0; index < effectiveChain.length; index += 1) {
+    const model = effectiveChain[index]
 
     try {
       return await requestGeminiTTSModel(model, text, voiceName)
@@ -233,7 +236,7 @@ export async function requestGeminiTTS(
 
       failures.push(`${model}: ${error.message}`)
 
-      const nextModel = GEMINI_TTS_MODEL_CHAIN[index + 1]
+      const nextModel = effectiveChain[index + 1]
 
       if (nextModel) {
         console.warn(
