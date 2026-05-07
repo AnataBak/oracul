@@ -5,6 +5,7 @@ import {
   type MuseumArtwork,
 } from "./museum-providers"
 import { requestGeminiText, type GeminiInlineImage } from "../gemini"
+import { sanitizeGeminiTextChain, type GeminiTextModel } from "@/lib/gemini-models"
 import {
   DEFAULT_ARTWORK_SELECTION_STRICTNESS,
   isArtworkSelectionStrictness,
@@ -298,8 +299,11 @@ function getVoicePrompt(voice: OracleVoice): string {
 - Не используй списки, markdown, заголовки или JSON.`
 }
 
-async function buildKeywordCandidates(userText: string): Promise<string[]> {
-  const rawKeywords = await requestGeminiText(
+async function buildKeywordCandidates(
+  userText: string,
+  modelChain?: readonly string[],
+): Promise<string[]> {
+  const { text: rawKeywords } = await requestGeminiText(
     `Прочитай этот текст: "${userText}".
 Верни строго JSON без markdown и пояснений:
 {
@@ -314,6 +318,8 @@ async function buildKeywordCandidates(userText: string): Promise<string[]> {
 - Избегай слишком общих слов вроде abstract, dream, memory, light, portrait, если в тексте есть более конкретный образ.
 - Не больше 8 терминов.`,
     0.2,
+    undefined,
+    modelChain,
   )
 
   const structuredKeywords = extractJsonArray(rawKeywords, "searchTerms")
@@ -330,9 +336,11 @@ async function requestGeminiArtworkResponse(
   artwork: MuseumArtwork,
   oracleVoice: OracleVoice,
   visualAnalysisEnabled: boolean,
+  modelChain?: readonly string[],
 ): Promise<{
   text: string
   visualAnalysisUsed: boolean
+  modelUsed: string
 }> {
   const image = visualAnalysisEnabled ? await fetchArtworkImageForGemini(artwork) : null
   const museumFacts = [
@@ -357,9 +365,17 @@ ${museumFacts}
 
 ${getVoicePrompt(oracleVoice)}${image ? getVisualAnalysisInstructions() : ""}`
 
+  const { text, modelUsed } = await requestGeminiText(
+    geminiPrompt,
+    0.7,
+    image || undefined,
+    modelChain,
+  )
+
   return {
-    text: await requestGeminiText(geminiPrompt, 0.7, image || undefined),
+    text,
     visualAnalysisUsed: Boolean(image),
+    modelUsed,
   }
 }
 
@@ -379,6 +395,7 @@ export async function POST(request: Request) {
       oracleVoice?: unknown
       visualAnalysisEnabled?: unknown
       selectionStrictness?: unknown
+      geminiTextModelChain?: unknown
     }
 
     const userText =
@@ -400,8 +417,14 @@ export async function POST(request: Request) {
     const oracleVoice = isOracleVoice(body.oracleVoice) ? body.oracleVoice : DEFAULT_ORACLE_VOICE
     const visualAnalysisEnabled = isVisualAnalysisEnabled(body.visualAnalysisEnabled)
     const selectionStrictness = getSelectionStrictness(body.selectionStrictness)
+    const sanitizedGeminiChain: GeminiTextModel[] | null = sanitizeGeminiTextChain(
+      body.geminiTextModelChain,
+    )
+    const geminiTextModelChain = sanitizedGeminiChain ?? undefined
     const baseSearchKeywords =
-      clientSearchKeywords.length > 0 ? clientSearchKeywords : await buildKeywordCandidates(userText)
+      clientSearchKeywords.length > 0
+        ? clientSearchKeywords
+        : await buildKeywordCandidates(userText, geminiTextModelChain)
     const searchKeywords = applySelectionStrictnessToKeywords(
       userText,
       baseSearchKeywords,
@@ -421,6 +444,7 @@ export async function POST(request: Request) {
       artwork,
       oracleVoice,
       visualAnalysisEnabled,
+      geminiTextModelChain,
     )
 
     return NextResponse.json({
@@ -434,6 +458,7 @@ export async function POST(request: Request) {
       searchKeywords,
       visualAnalysisRequested: visualAnalysisEnabled,
       visualAnalysisUsed: geminiArtworkResponse.visualAnalysisUsed,
+      geminiTextModel: geminiArtworkResponse.modelUsed,
       museumInfo: {
         source: artwork.source,
         artworkId: artwork.id,

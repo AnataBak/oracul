@@ -9,6 +9,7 @@ import {
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
+import { useGeminiTextChain } from "@/lib/model-preferences"
 import { ErrorNotice } from "./oracle/error-notice"
 import { InputState } from "./oracle/input-state"
 import { LoadingState } from "./oracle/loading-state"
@@ -39,6 +40,7 @@ type ArtOracleResponse = {
   searchKeywords?: string[]
   visualAnalysisRequested?: boolean
   visualAnalysisUsed?: boolean
+  geminiTextModel?: string
   museumInfo: {
     source: string
     artworkId: string
@@ -73,6 +75,7 @@ type OracleResult = {
   voice: OracleVoice
   visualAnalysisRequested: boolean
   visualAnalysisUsed: boolean
+  geminiTextModel?: string
 }
 
 type RecentArtworkMemory = {
@@ -163,6 +166,7 @@ export function ArtOracle() {
   const [selectionStrictness, setSelectionStrictness] = useState<ArtworkSelectionStrictness>(
     DEFAULT_ARTWORK_SELECTION_STRICTNESS,
   )
+  const textChain = useGeminiTextChain()
   const [isVisible, setIsVisible] = useState(false)
   const [isRefreshingSameMood, setIsRefreshingSameMood] = useState(false)
   const [result, setResult] = useState<OracleResult | null>(null)
@@ -225,6 +229,7 @@ export function ArtOracle() {
         oracleVoice: selectedVoice,
         visualAnalysisEnabled,
         selectionStrictness,
+        geminiTextModelChain: textChain.chain,
       }),
     })
 
@@ -257,6 +262,10 @@ export function ArtOracle() {
       voice: selectedVoice,
       visualAnalysisRequested: Boolean(data.visualAnalysisRequested),
       visualAnalysisUsed: Boolean(data.visualAnalysisUsed),
+      geminiTextModel:
+        typeof data.geminiTextModel === "string" && data.geminiTextModel.length > 0
+          ? data.geminiTextModel
+          : undefined,
     }
   }
 
@@ -400,6 +409,7 @@ export function ArtOracle() {
                 museumInfo={result.museumInfo}
                 visualAnalysisRequested={result.visualAnalysisRequested}
                 visualAnalysisUsed={result.visualAnalysisUsed}
+                geminiTextModel={result.geminiTextModel}
                 searchKeywords={result.searchKeywords}
                 onReset={handleReset}
                 onRefreshSameMood={handleRefreshSameMood}

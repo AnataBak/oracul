@@ -1,11 +1,4 @@
-const GEMINI_PRIMARY_MODEL = "gemini-2.5-flash-lite"
-const GEMINI_MODEL_CHAIN = [
-  GEMINI_PRIMARY_MODEL,
-  "gemini-2.5-flash",
-  "gemini-3.1-flash-lite-preview",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-]
+import { GEMINI_TEXT_MODEL_CHAIN } from "@/lib/gemini-models"
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -122,18 +115,27 @@ async function requestGeminiModel(
   return content
 }
 
+export interface GeminiTextResult {
+  text: string
+  modelUsed: string
+}
+
 export async function requestGeminiText(
   prompt: string,
   temperature: number,
   image?: GeminiInlineImage,
-): Promise<string> {
+  modelChain?: readonly string[],
+): Promise<GeminiTextResult> {
   const failures: string[] = []
+  const effectiveChain =
+    modelChain && modelChain.length > 0 ? modelChain : GEMINI_TEXT_MODEL_CHAIN
 
-  for (let index = 0; index < GEMINI_MODEL_CHAIN.length; index += 1) {
-    const model = GEMINI_MODEL_CHAIN[index]
+  for (let index = 0; index < effectiveChain.length; index += 1) {
+    const model = effectiveChain[index]
 
     try {
-      return await requestGeminiModel(model, prompt, temperature, image)
+      const text = await requestGeminiModel(model, prompt, temperature, image)
+      return { text, modelUsed: model }
     } catch (error) {
       if (!isGeminiFallbackError(error)) {
         throw error
@@ -141,7 +143,7 @@ export async function requestGeminiText(
 
       failures.push(`${model}: ${error.message}`)
 
-      const nextModel = GEMINI_MODEL_CHAIN[index + 1]
+      const nextModel = effectiveChain[index + 1]
 
       if (nextModel) {
         console.warn(`${model} is unavailable or rate-limited. Falling back to ${nextModel}.`)

@@ -1,6 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useGeminiTtsChain } from "@/lib/model-preferences"
+import type { GeminiTtsModel } from "@/lib/gemini-tts-models"
 
 type OracleTTSStatus = "idle" | "loading" | "playing" | "paused" | "error"
 
@@ -24,13 +26,17 @@ interface TTSFetchResult {
   modelUsed: string | null
 }
 
-async function fetchTTSBlob(text: string, voice?: string): Promise<TTSFetchResult> {
+async function fetchTTSBlob(
+  text: string,
+  voice: string | undefined,
+  ttsModelChain: readonly GeminiTtsModel[],
+): Promise<TTSFetchResult> {
   const response = await fetch("/api/tts", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ text, voice }),
+    body: JSON.stringify({ text, voice, ttsModelChain }),
     cache: "no-store",
   })
 
@@ -60,6 +66,11 @@ export function useOracleTTS({ text, voice, onModelUsed }: UseOracleTTSOptions):
   const [status, setStatus] = useState<OracleTTSStatus>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [lastModelUsed, setLastModelUsed] = useState<string | null>(null)
+  const ttsChain = useGeminiTtsChain()
+  const ttsChainRef = useRef(ttsChain.chain)
+  useEffect(() => {
+    ttsChainRef.current = ttsChain.chain
+  }, [ttsChain.chain])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const objectUrlRef = useRef<string | null>(null)
   const cachedBlobRef = useRef<Blob | null>(null)
@@ -188,7 +199,7 @@ export function useOracleTTS({ text, voice, onModelUsed }: UseOracleTTSOptions):
     setErrorMessage(null)
 
     try {
-      const { blob, modelUsed } = await fetchTTSBlob(trimmedText, voice)
+      const { blob, modelUsed } = await fetchTTSBlob(trimmedText, voice, ttsChainRef.current)
 
       if (requestId !== requestIdRef.current) {
         return

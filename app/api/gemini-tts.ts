@@ -1,10 +1,5 @@
 import { Mp3Encoder } from "@breezystack/lamejs"
-
-const GEMINI_TTS_MODEL_CHAIN = [
-  "gemini-2.5-flash-preview-tts",
-  "gemini-3.1-flash-tts-preview",
-  "gemini-2.5-pro-preview-tts",
-]
+import { GEMINI_TTS_MODEL_CHAIN } from "@/lib/gemini-tts-models"
 
 const DEFAULT_VOICE_NAME = "Kore"
 const DEFAULT_SAMPLE_RATE = 24000
@@ -223,11 +218,14 @@ async function requestGeminiTTSModel(
 export async function requestGeminiTTS(
   text: string,
   voiceName: string = DEFAULT_VOICE_NAME,
+  modelChain?: readonly string[],
 ): Promise<TTSResult> {
   const failures: string[] = []
+  const effectiveChain =
+    modelChain && modelChain.length > 0 ? modelChain : GEMINI_TTS_MODEL_CHAIN
 
-  for (let index = 0; index < GEMINI_TTS_MODEL_CHAIN.length; index += 1) {
-    const model = GEMINI_TTS_MODEL_CHAIN[index]
+  for (let index = 0; index < effectiveChain.length; index += 1) {
+    const model = effectiveChain[index]
 
     try {
       return await requestGeminiTTSModel(model, text, voiceName)
@@ -238,7 +236,7 @@ export async function requestGeminiTTS(
 
       failures.push(`${model}: ${error.message}`)
 
-      const nextModel = GEMINI_TTS_MODEL_CHAIN[index + 1]
+      const nextModel = effectiveChain[index + 1]
 
       if (nextModel) {
         console.warn(
