@@ -1,10 +1,5 @@
 import { Mp3Encoder } from "@breezystack/lamejs"
-
-const GEMINI_TTS_MODEL_CHAIN = [
-  "gemini-2.5-flash-preview-tts",
-  "gemini-3.1-flash-tts-preview",
-  "gemini-2.5-pro-preview-tts",
-]
+import { GEMINI_TTS_MODEL_CHAIN } from "@/lib/gemini-tts-models"
 
 const DEFAULT_VOICE_NAME = "Kore"
 const DEFAULT_SAMPLE_RATE = 24000

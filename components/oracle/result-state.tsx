@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent, type SyntheticEvent } f
 import Image from "next/image"
 import { BookOpen, ExternalLink, Heart, Loader2, Pause, Play, RefreshCw, Share2, Volume2 } from "lucide-react"
 import { getOracleVoiceOption, type OracleVoice } from "@/lib/oracle-voices"
+import { GEMINI_TTS_MODEL_CHAIN } from "@/lib/gemini-tts-models"
 import { Button } from "@/components/ui/button"
 import { useOracleTTS } from "@/hooks/use-oracle-tts"
 import {
@@ -169,13 +170,14 @@ export function ResultState({
   const selectionNote = getSelectionNote(museumInfo, searchKeywords)
   const visualAnalysisNote = getVisualAnalysisNote(visualAnalysisRequested, visualAnalysisUsed)
   const tts = useOracleTTS({ text: comment })
+  const ttsChainText = GEMINI_TTS_MODEL_CHAIN.join(" → ")
   const ttsDebugNote = (() => {
     if (tts.status === "loading" && !tts.lastModelUsed) {
       return "Озвучка генерируется. Используется первая доступная модель из цепочки фолбэков."
     }
 
     if (tts.lastModelUsed) {
-      return `Ответила модель: ${tts.lastModelUsed}. Цепочка фолбэков: gemini-3.1-flash-tts-preview → gemini-2.5-pro-preview-tts → gemini-2.5-flash-preview-tts.`
+      return `Ответила модель: ${tts.lastModelUsed}. Цепочка фолбэков: ${ttsChainText}.`
     }
 
     if (tts.status === "error" && tts.errorMessage) {
