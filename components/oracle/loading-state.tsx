@@ -14,6 +14,18 @@ const loadingMessages = [
 const RANDOM_LOADING_ART_STORAGE_KEY = "art-oracle-random-loading-artworks"
 const RANDOM_LOADING_ART_LIMIT = 80
 const ARTWORK_AUTOPLAY_INTERVAL_MS = 5200
+const FRAME_MIN_ASPECT = 3 / 4
+const FRAME_MAX_ASPECT = 5 / 4
+const FRAME_DEFAULT_ASPECT = 4 / 5
+
+function clampFrameAspect(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return FRAME_DEFAULT_ASPECT
+  }
+
+  const ratio = width / height
+  return Math.min(Math.max(ratio, FRAME_MIN_ASPECT), FRAME_MAX_ASPECT)
+}
 
 type LoadingArtwork = {
   id: string
@@ -113,6 +125,7 @@ export function LoadingState({
   const [artworks, setArtworks] = useState<LoadingArtwork[]>([])
   const [activeArtworkIndex, setActiveArtworkIndex] = useState(0)
   const [autoplayResetKey, setAutoplayResetKey] = useState(0)
+  const [frameAspect, setFrameAspect] = useState<number>(FRAME_DEFAULT_ASPECT)
   const touchStartXRef = useRef<number | null>(null)
   const fallbackAttemptedArtworkIdsRef = useRef<Set<string>>(new Set())
   const activeArtwork = artworks[activeArtworkIndex]
@@ -262,15 +275,22 @@ export function LoadingState({
                 handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)
               }}
             >
-              <div className="relative aspect-[4/5]">
+              <div
+                className="relative transition-[aspect-ratio] duration-300 ease-out"
+                style={{ aspectRatio: frameAspect }}
+              >
                 <Image
                   key={activeArtwork.id}
                   src={activeArtwork.imageUrl}
                   alt={activeArtwork.title}
                   fill
                   unoptimized
-                  className="animate-fade-in object-cover"
+                  className="animate-fade-in object-contain"
                   sizes="(max-width: 640px) 88vw, 384px"
+                  onLoad={(event) => {
+                    const target = event.currentTarget
+                    setFrameAspect(clampFrameAspect(target.naturalWidth, target.naturalHeight))
+                  }}
                   onError={(event) => {
                     if (
                       activeArtwork.fallbackImageUrl &&
