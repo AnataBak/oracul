@@ -15,6 +15,9 @@ export type GeminiInlineImage = {
   data: string
 }
 
+const MAX_PASSES = 2
+const PASS_DELAY_MS = 1500
+
 async function readErrorBody(response: Response): Promise<string> {
   const text = await response.text()
   return text || `Request failed with status ${response.status}`
@@ -24,27 +27,59 @@ function buildGeminiUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`
 }
 
-function isFallbackEligibleError(status: number, body: string): boolean {
-  const normalizedBody = body.toLowerCase()
-
-  return (
-    status === 429 ||
-    status === 500 ||
-    status === 502 ||
-    status === 503 ||
-    status === 504 ||
-    normalizedBody.includes("resource_exhausted") ||
-      normalizedBody.includes("quota") ||
-      normalizedBody.includes("rate limit") ||
-      normalizedBody.includes("unavailable") ||
-      normalizedBody.includes("high demand") ||
-      normalizedBody.includes("overloaded") ||
-      normalizedBody.includes("temporarily")
-  )
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function isGeminiFallbackError(error: unknown): error is Error {
-  return error instanceof Error && error.name === "GeminiFallbackError"
+class GeminiCallError extends Error {
+  readonly model: string
+  readonly status: number
+  readonly body: string
+  readonly isPermanent: boolean
+
+  constructor(model: string, status: number, body: string, isPermanent: boolean) {
+    super(`Gemini request failed for ${model}: ${body}`)
+    this.name = "GeminiCallError"
+    this.model = model
+    this.status = status
+    this.body = body
+    this.isPermanent = isPermanent
+  }
+}
+
+function classifyFailure(status: number, body: string): { isPermanent: boolean } {
+  const normalizedBody = body.toLowerCase()
+
+  if (status === 404 || status === 400) {
+    return { isPermanent: true }
+  }
+
+  if (status === 429) {
+    if (
+      normalizedBody.includes("limit: 0") ||
+      normalizedBody.includes("perdayperprojectpermodel") ||
+      normalizedBody.includes("perday")
+    ) {
+      return { isPermanent: true }
+    }
+
+    return { isPermanent: false }
+  }
+
+  if (status === 500 || status === 502 || status === 503 || status === 504) {
+    return { isPermanent: false }
+  }
+
+  if (
+    normalizedBody.includes("high demand") ||
+    normalizedBody.includes("overloaded") ||
+    normalizedBody.includes("unavailable") ||
+    normalizedBody.includes("temporarily")
+  ) {
+    return { isPermanent: false }
+  }
+
+  return { isPermanent: true }
 }
 
 async function requestGeminiModel(
@@ -85,31 +120,21 @@ async function requestGeminiModel(
       cache: "no-store",
     })
   } catch (error) {
-    const requestError = new Error(
-      `Gemini request failed for ${model}: ${
-        error instanceof Error ? error.message : "Network request failed"
-      }`,
-    )
-
-    requestError.name = "GeminiFallbackError"
-    throw requestError
+    const message = error instanceof Error ? error.message : "Network request failed"
+    throw new GeminiCallError(model, 0, message, false)
   }
 
   if (!response.ok) {
     const errorBody = await readErrorBody(response)
-    const error = new Error(`Gemini request failed for ${model}: ${errorBody}`)
-
-    error.name = isFallbackEligibleError(response.status, errorBody)
-      ? "GeminiFallbackError"
-      : "GeminiRequestError"
-    throw error
+    const { isPermanent } = classifyFailure(response.status, errorBody)
+    throw new GeminiCallError(model, response.status, errorBody, isPermanent)
   }
 
   const data = (await response.json()) as GeminiResponse
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
 
   if (!content) {
-    throw new Error(`Gemini returned an empty response for ${model}`)
+    throw new GeminiCallError(model, response.status, "Gemini returned an empty response", true)
   }
 
   return content
@@ -126,30 +151,56 @@ export async function requestGeminiText(
   image?: GeminiInlineImage,
   modelChain?: readonly string[],
 ): Promise<GeminiTextResult> {
-  const failures: string[] = []
   const effectiveChain =
     modelChain && modelChain.length > 0 ? modelChain : GEMINI_TEXT_MODEL_CHAIN
 
-  for (let index = 0; index < effectiveChain.length; index += 1) {
-    const model = effectiveChain[index]
+  const failuresByModel = new Map<string, string>()
+  const permanentlyDead = new Set<string>()
 
-    try {
-      const text = await requestGeminiModel(model, prompt, temperature, image)
-      return { text, modelUsed: model }
-    } catch (error) {
-      if (!isGeminiFallbackError(error)) {
-        throw error
+  for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+    let hadTransientThisPass = false
+
+    for (const model of effectiveChain) {
+      if (permanentlyDead.has(model)) {
+        continue
       }
 
-      failures.push(`${model}: ${error.message}`)
+      try {
+        const text = await requestGeminiModel(model, prompt, temperature, image)
+        return { text, modelUsed: model }
+      } catch (error) {
+        if (!(error instanceof GeminiCallError)) {
+          throw error
+        }
 
-      const nextModel = effectiveChain[index + 1]
+        failuresByModel.set(model, error.message)
 
-      if (nextModel) {
-        console.warn(`${model} is unavailable or rate-limited. Falling back to ${nextModel}.`)
+        if (error.isPermanent) {
+          permanentlyDead.add(model)
+        } else {
+          hadTransientThisPass = true
+        }
+
+        if (pass === 0) {
+          console.warn(
+            `${model} failed (status ${error.status}, permanent=${error.isPermanent}). Continuing chain.`,
+          )
+        }
       }
+    }
+
+    if (!hadTransientThisPass) {
+      break
+    }
+
+    if (pass + 1 < MAX_PASSES) {
+      console.warn(
+        `All models failed pass ${pass + 1}. Sleeping ${PASS_DELAY_MS}ms before retrying transient failures.`,
+      )
+      await sleep(PASS_DELAY_MS)
     }
   }
 
+  const failures = Array.from(failuresByModel.entries()).map(([model, msg]) => `${model}: ${msg}`)
   throw new Error(`All Gemini fallback models failed. ${failures.join(" | ")}`)
 }
