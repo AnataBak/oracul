@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { GEMINI_TRANSLATE_MODEL_CHAIN } from "@/lib/gemini-models"
 import { requestGeminiText } from "../gemini"
 
 export const runtime = "nodejs"
@@ -47,7 +48,7 @@ async function requestGeminiTranslation(museumInfo: MuseumInfoPayload): Promise<
 JSON:
 ${JSON.stringify(museumInfo)}`
 
-  const { text } = await requestGeminiText(prompt, 0.1)
+  const { text } = await requestGeminiText(prompt, 0.1, undefined, GEMINI_TRANSLATE_MODEL_CHAIN)
 
   return JSON.parse(extractJsonObject(text)) as MuseumInfoPayload
 }
