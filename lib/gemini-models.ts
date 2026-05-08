@@ -1,6 +1,7 @@
 export const GEMINI_TEXT_MODEL_CHAIN = [
   "gemini-2.5-flash-lite",
   "gemini-2.5-flash",
+  "gemini-3.1-flash-lite",
   "gemini-3.1-flash-lite-preview",
   "gemini-3-flash-preview",
   "gemma-4-31b-it",
