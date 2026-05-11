@@ -184,10 +184,10 @@ export function InputState({
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Сегодня я чувствую себя..."
-              className="w-full min-h-[170px] resize-none rounded-[1.75rem] bg-secondary/30 p-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[220px] md:text-xl"
+              className="w-full min-h-[170px] resize-none bg-transparent p-1 pb-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:min-h-[220px] md:text-xl"
               autoFocus
             />
-            <span className="pointer-events-none absolute right-4 top-4 rounded-full border border-border/80 bg-background/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+            <span className="pointer-events-none absolute right-0 top-0 rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
               Ctrl + Enter
             </span>
           </div>
@@ -199,8 +199,8 @@ export function InputState({
                 : "Опишите своё настроение или мысли"}
             </p>
 
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-              <div className="flex min-w-0 items-center justify-between gap-1 rounded-full border border-border/80 bg-background/55 p-1 sm:justify-start sm:gap-2">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+              <div className="flex min-w-0 items-center gap-1 sm:gap-2">
                 <Button
                   type="button"
                   variant={visualAnalysisEnabled ? "default" : "outline"}
@@ -211,13 +211,13 @@ export function InputState({
                       : "Включить визуальный анализ"
                   }
                   aria-pressed={visualAnalysisEnabled}
-                  className="size-9 rounded-full"
+                  className="size-8 rounded-full sm:size-9"
                   onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
                 >
                   {visualAnalysisEnabled ? (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   ) : (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   )}
                 </Button>
 
@@ -225,10 +225,10 @@ export function InputState({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground"
+                      className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground sm:p-2"
                       aria-label="Что значит глаз"
                     >
-                      <HelpCircle className="h-4 w-4" />
+                      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-72">
@@ -247,7 +247,7 @@ export function InputState({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-9 gap-2 rounded-full px-3 text-muted-foreground hover:text-foreground"
+                      className="h-8 gap-1.5 rounded-full px-2 text-muted-foreground hover:text-foreground sm:h-9 sm:gap-2 sm:px-3"
                     >
                       <Settings2 className="h-4 w-4" />
                       <span className="hidden sm:inline">Настройки</span>
@@ -364,7 +364,7 @@ export function InputState({
               <Button
                 onClick={onSubmit}
                 disabled={!value.trim()}
-                className="h-12 rounded-full bg-primary px-6 text-base text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                className="h-10 rounded-full bg-primary px-4 text-sm text-primary-foreground shadow-lg shadow-primary/15 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 sm:h-11 sm:px-6 sm:text-base"
               >
                 <span className="mr-2">Найти картину</span>
                 <Send className="h-4 w-4" />
