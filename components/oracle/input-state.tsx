@@ -192,7 +192,12 @@ export function InputState({
             </span>
           </div>
 
-          <div className="relative mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="pointer-events-none relative my-4 h-3">
+            <div className="absolute inset-x-4 top-1/2 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent" />
+            <div className="absolute left-1/2 top-1/2 h-[3px] w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+          </div>
+
+          <div className="relative mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               {value.length > 0
                 ? `${value.length} символов`
