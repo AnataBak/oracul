@@ -321,11 +321,13 @@ export function ArtOracle() {
   }
 
   return (
-    <main className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-accent/10 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-secondary rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-50" />
+    <main className="relative isolate min-h-screen overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-background" />
+        <div className="absolute inset-x-8 top-24 h-px bg-gradient-to-r from-transparent via-accent/35 to-transparent" />
+        <div className="absolute -right-56 -top-48 h-[46rem] w-[46rem] rounded-full bg-primary/5 blur-[160px]" />
+        <div className="absolute -left-56 top-10 h-[42rem] w-[42rem] rounded-full bg-accent/5 blur-[160px]" />
+        <div className="absolute bottom-0 left-1/2 h-[24rem] w-[46rem] -translate-x-1/2 rounded-full bg-secondary/10 blur-[180px]" />
       </div>
 
       <div className="absolute right-5 top-5 z-10 animate-fade-in md:right-6 md:top-6">
@@ -346,11 +348,11 @@ export function ArtOracle() {
         </div>
       )}
 
-      <div className="relative flex items-center justify-center min-h-screen px-5 py-16 md:px-10">
+      <div className="relative flex min-h-screen items-center justify-center px-5 py-14 md:px-10 md:py-20">
         <div
-          className={`w-full max-w-4xl transition-opacity duration-800 ${
-            isVisible ? "opacity-100" : "opacity-0"
-          }`}
+          className={`w-full transition-opacity duration-800 ${
+            status === "input" ? "max-w-5xl" : "max-w-4xl"
+          } ${isVisible ? "opacity-100" : "opacity-0"}`}
         >
           {status === "input" && (
             <div className="space-y-5">

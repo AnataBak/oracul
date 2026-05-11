@@ -156,47 +156,54 @@ export function InputState({
   }
 
   return (
-    <div className="animate-fade-in flex flex-col items-center text-center gap-10">
-      {/* Картина дня в круге вместо логотипа */}
-      <DailyArtOrb />
+    <div className="animate-fade-in flex w-full flex-col items-center gap-6 text-center md:gap-7">
+      <div className="relative">
+        <div className="absolute -inset-6 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative">
+          <DailyArtOrb />
+        </div>
+      </div>
 
-      {/* Заголовок */}
-      <div className="space-y-4">
-        <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground tracking-tight text-balance">
+      <div className="space-y-5">
+        <h1 className="font-serif text-5xl leading-none tracking-tight text-foreground text-balance md:text-6xl lg:text-7xl">
           Арт-Оракул
         </h1>
-        <p className="text-muted-foreground text-base md:text-lg max-w-xl mx-auto leading-relaxed">
-          Расскажите, что у вас на душе, и мы подберём картину из коллекции 
-          мировых музеев, которая откликнется именно вам
+        <p className="mx-auto max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
+          Напишите, что происходит внутри. Оракул пройдёт по залам мировых музеев
+          и подберёт картину, которая ответит именно вашему настроению.
         </p>
       </div>
 
-      {/* Карточка ввода */}
-      <div className="w-full max-w-2xl">
-        <div className="bg-card rounded-2xl p-6 md:p-8 shadow-lg shadow-foreground/5 border border-border">
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Сегодня я чувствую себя..."
-            className="w-full min-h-[140px] md:min-h-[160px] resize-none 
-                       text-foreground text-lg md:text-xl leading-relaxed
-                       placeholder:text-muted-foreground/60 
-                       bg-transparent border-none focus:ring-0 focus:outline-none"
-            autoFocus
-          />
+      <div className="w-full max-w-3xl">
+        <div className="relative overflow-hidden rounded-[2rem] border-y border-accent/25 bg-card/45 p-4 shadow-2xl shadow-black/10 backdrop-blur-xl dark:shadow-black/30 md:p-6">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+          <div className="relative">
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Сегодня я чувствую себя..."
+              className="w-full min-h-[170px] resize-none bg-transparent p-1 pb-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:min-h-[220px] md:text-xl"
+              autoFocus
+            />
+            <span className="pointer-events-none absolute right-0 top-0 rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+              Ctrl + Enter
+            </span>
+          </div>
 
-          {/* Разделитель */}
-          <div className="h-px bg-border my-4" />
-          
-          {/* Нижняя часть карточки */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-muted-foreground text-sm">
-              {value.length > 0 
-                ? `${value.length} символов` 
+          <div className="pointer-events-none relative my-4 h-3">
+            <div className="absolute inset-x-4 top-1/2 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent" />
+            <div className="absolute left-1/2 top-1/2 h-[3px] w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+          </div>
+
+          <div className="relative mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {value.length > 0
+                ? `${value.length} символов`
                 : "Опишите своё настроение или мысли"}
             </p>
-            
+
             <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
               <div className="flex min-w-0 items-center gap-1 sm:gap-2">
                 <Button
@@ -212,7 +219,11 @@ export function InputState({
                   className="size-8 rounded-full sm:size-9"
                   onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
                 >
-                  {visualAnalysisEnabled ? <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  {visualAnalysisEnabled ? (
+                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  ) : (
+                    <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  )}
                 </Button>
 
                 <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
@@ -358,10 +369,7 @@ export function InputState({
               <Button
                 onClick={onSubmit}
                 disabled={!value.trim()}
-                className="h-10 rounded-full px-4 text-sm bg-primary hover:bg-primary/90 
-                           text-primary-foreground transition-all duration-300 sm:h-11 sm:px-6 sm:text-base
-                           disabled:opacity-40 disabled:cursor-not-allowed
-                           hover:shadow-lg hover:shadow-primary/20"
+                className="h-10 rounded-full bg-primary px-4 text-sm text-primary-foreground shadow-lg shadow-primary/15 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 sm:h-11 sm:px-6 sm:text-base"
               >
                 <span className="mr-2">Найти картину</span>
                 <Send className="h-4 w-4" />
@@ -371,19 +379,22 @@ export function InputState({
         </div>
       </div>
 
-      {/* Подсказки настроений */}
-      <div className="flex flex-wrap justify-center gap-2 max-w-xl">
-        {["Спокойствие", "Вдохновение", "Меланхолия", "Радость", "Задумчивость"].map((mood) => (
-          <button
-            key={mood}
-            onClick={() => onChange(value + (value ? " " : "") + mood.toLowerCase())}
-            className="px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm
-                       hover:bg-primary/10 hover:text-primary transition-colors duration-200
-                       border border-transparent hover:border-primary/20"
-          >
-            {mood}
-          </button>
-        ))}
+      <div className="space-y-3 text-center">
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+          Можно начать с одного слова
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {["Спокойствие", "Вдохновение", "Меланхолия", "Радость", "Задумчивость"].map((mood) => (
+            <button
+              key={mood}
+              type="button"
+              onClick={() => onChange(value + (value ? " " : "") + mood.toLowerCase())}
+              className="rounded-full border border-accent/20 bg-accent/10 px-4 py-2 text-sm text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent/15 hover:text-foreground"
+            >
+              {mood}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
