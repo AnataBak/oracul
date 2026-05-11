@@ -323,13 +323,11 @@ export function ArtOracle() {
   return (
     <main className="relative isolate min-h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,var(--accent)_0,transparent_28%),radial-gradient(circle_at_88%_12%,var(--primary)_0,transparent_26%),radial-gradient(circle_at_50%_92%,var(--secondary)_0,transparent_32%)] opacity-20" />
+        <div className="absolute inset-0 bg-background" />
         <div className="absolute inset-x-8 top-24 h-px bg-gradient-to-r from-transparent via-accent/35 to-transparent" />
-        <div className="absolute inset-x-10 bottom-16 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
-        <div className="absolute left-6 top-28 hidden h-72 w-px bg-gradient-to-b from-transparent via-accent/30 to-transparent md:block" />
-        <div className="absolute right-8 bottom-24 hidden h-64 w-px bg-gradient-to-b from-transparent via-primary/25 to-transparent md:block" />
-        <div className="absolute -right-28 -top-28 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-28 -left-24 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
+        <div className="absolute -right-56 -top-48 h-[46rem] w-[46rem] rounded-full bg-primary/5 blur-[160px]" />
+        <div className="absolute -left-56 top-10 h-[42rem] w-[42rem] rounded-full bg-accent/5 blur-[160px]" />
+        <div className="absolute bottom-0 left-1/2 h-[24rem] w-[46rem] -translate-x-1/2 rounded-full bg-secondary/10 blur-[180px]" />
       </div>
 
       <div className="absolute right-5 top-5 z-10 animate-fade-in md:right-6 md:top-6">
@@ -350,7 +348,7 @@ export function ArtOracle() {
         </div>
       )}
 
-      <div className="relative flex min-h-screen items-center justify-center px-5 py-20 md:px-10">
+      <div className="relative flex min-h-screen items-center justify-center px-5 py-14 md:px-10 md:py-20">
         <div
           className={`w-full transition-opacity duration-800 ${
             status === "input" ? "max-w-5xl" : "max-w-4xl"

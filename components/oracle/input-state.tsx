@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, Sparkles, X } from "lucide-react"
+import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -156,17 +156,12 @@ export function InputState({
   }
 
   return (
-    <div className="animate-fade-in flex w-full flex-col items-center gap-8 text-center">
+    <div className="animate-fade-in flex w-full flex-col items-center gap-6 text-center md:gap-7">
       <div className="relative">
-        <div className="absolute -inset-7 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -inset-6 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative">
           <DailyArtOrb />
         </div>
-      </div>
-
-      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-accent">
-        <Sparkles className="h-3.5 w-3.5" />
-        Галерея настроений
       </div>
 
       <div className="space-y-5">
@@ -179,26 +174,9 @@ export function InputState({
         </p>
       </div>
 
-      <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
-        {[
-          ["01", "Настроение", "вы описываете состояние"],
-          ["02", "Подбор", "музеи и визуальный анализ"],
-          ["03", "Послание", "картина и мягкий ответ"],
-        ].map(([number, title, description]) => (
-          <div
-            key={number}
-            className="rounded-2xl border border-border/70 bg-card/45 p-4 shadow-sm shadow-foreground/5 backdrop-blur-sm"
-          >
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-accent">{number}</p>
-            <p className="mt-3 font-serif text-lg text-foreground">{title}</p>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
-          </div>
-        ))}
-      </div>
-
       <div className="w-full max-w-3xl">
         <div className="relative overflow-hidden rounded-[2rem] border border-accent/25 bg-card/70 p-6 shadow-2xl shadow-black/15 backdrop-blur-xl dark:shadow-black/35 md:p-8">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,var(--accent)_0,transparent_30%),radial-gradient(circle_at_100%_100%,var(--primary)_0,transparent_34%)] opacity-10" />
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
           <div className="relative mb-5 flex flex-col gap-3 border-b border-border/80 pb-5 text-left sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -216,15 +194,14 @@ export function InputState({
             </p>
           </div>
           <div className="relative">
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Сегодня я чувствую себя..."
-            className="w-full min-h-[190px] resize-none rounded-3xl bg-secondary/35 p-5 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[220px] md:text-xl"
-            autoFocus
-          />
-
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Сегодня я чувствую себя..."
+              className="w-full min-h-[160px] resize-none rounded-3xl bg-secondary/35 p-5 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[210px] md:text-xl"
+              autoFocus
+            />
           </div>
 
           <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
