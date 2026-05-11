@@ -166,10 +166,10 @@ export function InputState({
 
       <div className="space-y-5">
         <h1 className="font-serif text-5xl leading-none tracking-tight text-foreground text-balance md:text-6xl lg:text-7xl">
-          Арт-Оракул
+          Арт-терапия
         </h1>
         <p className="mx-auto max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
-          Напишите, что происходит внутри. Оракул пройдёт по залам мировых музеев
+          Напишите, что происходит внутри. Терапевт пройдёт по залам мировых музеев
           и подберёт картину, которая ответит именно вашему настроению.
         </p>
       </div>
@@ -264,7 +264,7 @@ export function InputState({
                   <div className="mb-3 px-1">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Голос ответа</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Выберите, как оракул прочитает найденную картину.
+                      Выберите, как терапевт прочитает найденную картину.
                     </p>
                   </div>
 

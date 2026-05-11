@@ -146,8 +146,8 @@ export function ModelChainSettings({ trigger }: ModelChainSettingsProps) {
 
         <div className="space-y-6 mt-2">
           <ChainEditor
-            title="Текстовая модель Оракула (/api/art)"
-            description="Используется и для подбора ключевых слов, и для генерации самого ответа Оракула."
+            title="Текстовая модель терапевта (/api/art)"
+            description="Используется и для подбора ключевых слов, и для генерации самого ответа терапевта."
             {...textChain}
           />
           <ChainEditor

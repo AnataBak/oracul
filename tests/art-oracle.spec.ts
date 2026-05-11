@@ -26,7 +26,7 @@ const mockArtResponse = {
   title: "Тестовая картина",
   artist: "Тестовый художник",
   year: "1901",
-  therapistText: "Тестовое послание оракула спокойно отвечает на настроение.",
+  therapistText: "Тестовое послание терапевта спокойно отвечает на настроение.",
   searchKeywords: ["calm", "melancholy"],
   visualAnalysisRequested: true,
   visualAnalysisUsed: false,
@@ -104,7 +104,7 @@ test.beforeEach(async ({ page }) => {
 test("opens the home page with the main input", async ({ page }) => {
   await openHomePage(page)
 
-  await expect(page.getByRole("heading", { name: "Арт-Оракул" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Арт-терапия" })).toBeVisible()
   await expect(page.getByPlaceholder("Сегодня я чувствую себя...")).toBeVisible()
   await expect(page.getByRole("button", { name: /Найти картину/ })).toBeDisabled()
 })
@@ -138,7 +138,7 @@ test("submits a mood and shows an oracle result", async ({ page }) => {
   resolveArt()
 
   await expect(page.getByText("Тестовая картина", { exact: true })).toBeVisible()
-  await expect(page.getByText("Тестовое послание оракула")).toBeVisible()
+  await expect(page.getByText("Тестовое послание терапевта")).toBeVisible()
 })
 
 test("shows a friendly message when the oracle request fails", async ({ page }) => {

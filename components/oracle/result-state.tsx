@@ -634,7 +634,7 @@ export function ResultState({
           <div className="rounded-xl border border-border bg-card p-6 md:p-8">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm uppercase tracking-wider text-muted-foreground">
-                Послание оракула
+                Послание терапевта
               </p>
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <span aria-hidden="true">{voiceOption.icon}</span>
