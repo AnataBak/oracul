@@ -156,7 +156,7 @@ export function InputState({
   }
 
   return (
-    <div className="animate-fade-in flex w-full flex-col items-center gap-6 text-center md:gap-7">
+    <div className="animate-fade-in -translate-y-6 flex w-full flex-col items-center gap-6 text-center md:translate-y-0 md:gap-7">
       <div className="relative">
         <div className="absolute -inset-6 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative">
@@ -184,7 +184,7 @@ export function InputState({
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Сегодня я чувствую себя..."
-              className="w-full min-h-[170px] resize-none bg-transparent p-1 pb-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:min-h-[220px] md:text-xl"
+              className="w-full min-h-[122px] resize-none bg-transparent p-1 pb-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:min-h-[220px] md:text-xl"
               autoFocus
             />
             <span className="pointer-events-none absolute right-0 top-0 rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
