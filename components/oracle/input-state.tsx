@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Eye, EyeOff, HelpCircle, Send, Settings2, X } from "lucide-react"
+import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -156,49 +156,86 @@ export function InputState({
   }
 
   return (
-    <div className="animate-fade-in flex flex-col items-center text-center gap-10">
-      {/* Картина дня в круге вместо логотипа */}
-      <DailyArtOrb />
+    <div className="animate-fade-in flex w-full flex-col items-center gap-8 text-center">
+      <div className="relative">
+        <div className="absolute -inset-7 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative">
+          <DailyArtOrb />
+        </div>
+      </div>
 
-      {/* Заголовок */}
-      <div className="space-y-4">
-        <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-foreground tracking-tight text-balance">
+      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.22em] text-accent">
+        <Sparkles className="h-3.5 w-3.5" />
+        Галерея настроений
+      </div>
+
+      <div className="space-y-5">
+        <h1 className="font-serif text-5xl leading-none tracking-tight text-foreground text-balance md:text-6xl lg:text-7xl">
           Арт-Оракул
         </h1>
-        <p className="text-muted-foreground text-base md:text-lg max-w-xl mx-auto leading-relaxed">
-          Расскажите, что у вас на душе, и мы подберём картину из коллекции 
-          мировых музеев, которая откликнется именно вам
+        <p className="mx-auto max-w-2xl text-base leading-8 text-muted-foreground md:text-lg">
+          Напишите, что происходит внутри. Оракул пройдёт по залам мировых музеев
+          и подберёт картину, которая ответит именно вашему настроению.
         </p>
       </div>
 
-      {/* Карточка ввода */}
-      <div className="w-full max-w-2xl">
-        <div className="bg-card rounded-2xl p-6 md:p-8 shadow-lg shadow-foreground/5 border border-border">
+      <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          ["01", "Настроение", "вы описываете состояние"],
+          ["02", "Подбор", "музеи и визуальный анализ"],
+          ["03", "Послание", "картина и мягкий ответ"],
+        ].map(([number, title, description]) => (
+          <div
+            key={number}
+            className="rounded-2xl border border-border/70 bg-card/45 p-4 shadow-sm shadow-foreground/5 backdrop-blur-sm"
+          >
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-accent">{number}</p>
+            <p className="mt-3 font-serif text-lg text-foreground">{title}</p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full max-w-3xl">
+        <div className="relative overflow-hidden rounded-[2rem] border border-accent/25 bg-card/70 p-6 shadow-2xl shadow-black/15 backdrop-blur-xl dark:shadow-black/35 md:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,var(--accent)_0,transparent_30%),radial-gradient(circle_at_100%_100%,var(--primary)_0,transparent_34%)] opacity-10" />
+          <div className="relative mb-5 flex flex-col gap-3 border-b border-border/80 pb-5 text-left sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Palette className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                  Запрос к оракулу
+                </p>
+                <p className="mt-1 text-sm text-foreground">Опишите настроение свободно</p>
+              </div>
+            </div>
+            <p className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground">
+              Ctrl + Enter
+            </p>
+          </div>
+          <div className="relative">
           <textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Сегодня я чувствую себя..."
-            className="w-full min-h-[140px] md:min-h-[160px] resize-none 
-                       text-foreground text-lg md:text-xl leading-relaxed
-                       placeholder:text-muted-foreground/60 
-                       bg-transparent border-none focus:ring-0 focus:outline-none"
+            className="w-full min-h-[190px] resize-none rounded-3xl bg-secondary/35 p-5 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[220px] md:text-xl"
             autoFocus
           />
 
-          {/* Разделитель */}
-          <div className="h-px bg-border my-4" />
-          
-          {/* Нижняя часть карточки */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-muted-foreground text-sm">
-              {value.length > 0 
-                ? `${value.length} символов` 
+          </div>
+
+          <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {value.length > 0
+                ? `${value.length} символов`
                 : "Опишите своё настроение или мысли"}
             </p>
-            
-            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-              <div className="flex min-w-0 items-center gap-1 sm:gap-2">
+
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              <div className="flex min-w-0 items-center justify-between gap-1 rounded-full border border-border/80 bg-background/55 p-1 sm:justify-start sm:gap-2">
                 <Button
                   type="button"
                   variant={visualAnalysisEnabled ? "default" : "outline"}
@@ -209,20 +246,24 @@ export function InputState({
                       : "Включить визуальный анализ"
                   }
                   aria-pressed={visualAnalysisEnabled}
-                  className="size-8 rounded-full sm:size-9"
+                  className="size-9 rounded-full"
                   onClick={() => onVisualAnalysisChange(!visualAnalysisEnabled)}
                 >
-                  {visualAnalysisEnabled ? <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  {visualAnalysisEnabled ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
                 </Button>
 
                 <Popover open={isEyeHelpOpen} onOpenChange={setIsEyeHelpOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground sm:p-2"
+                      className="shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-foreground"
                       aria-label="Что значит глаз"
                     >
-                      <HelpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <HelpCircle className="h-4 w-4" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-72">
@@ -241,7 +282,7 @@ export function InputState({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-8 gap-1.5 rounded-full px-2 text-muted-foreground hover:text-foreground sm:h-9 sm:gap-2 sm:px-3"
+                      className="h-9 gap-2 rounded-full px-3 text-muted-foreground hover:text-foreground"
                     >
                       <Settings2 className="h-4 w-4" />
                       <span className="hidden sm:inline">Настройки</span>
@@ -358,10 +399,7 @@ export function InputState({
               <Button
                 onClick={onSubmit}
                 disabled={!value.trim()}
-                className="h-10 rounded-full px-4 text-sm bg-primary hover:bg-primary/90 
-                           text-primary-foreground transition-all duration-300 sm:h-11 sm:px-6 sm:text-base
-                           disabled:opacity-40 disabled:cursor-not-allowed
-                           hover:shadow-lg hover:shadow-primary/20"
+                className="h-12 rounded-full bg-primary px-6 text-base text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               >
                 <span className="mr-2">Найти картину</span>
                 <Send className="h-4 w-4" />
@@ -371,19 +409,22 @@ export function InputState({
         </div>
       </div>
 
-      {/* Подсказки настроений */}
-      <div className="flex flex-wrap justify-center gap-2 max-w-xl">
-        {["Спокойствие", "Вдохновение", "Меланхолия", "Радость", "Задумчивость"].map((mood) => (
-          <button
-            key={mood}
-            onClick={() => onChange(value + (value ? " " : "") + mood.toLowerCase())}
-            className="px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm
-                       hover:bg-primary/10 hover:text-primary transition-colors duration-200
-                       border border-transparent hover:border-primary/20"
-          >
-            {mood}
-          </button>
-        ))}
+      <div className="space-y-3 text-center">
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+          Можно начать с одного слова
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {["Спокойствие", "Вдохновение", "Меланхолия", "Радость", "Задумчивость"].map((mood) => (
+            <button
+              key={mood}
+              type="button"
+              onClick={() => onChange(value + (value ? " " : "") + mood.toLowerCase())}
+              className="rounded-full border border-accent/20 bg-accent/10 px-4 py-2 text-sm text-foreground transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent/15 hover:text-foreground"
+            >
+              {mood}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -262,13 +262,13 @@ export function DailyArtOrb() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <div className="flex cursor-pointer flex-col items-center gap-2.5">
-          <div className="rounded-full p-[3px] ring-1 ring-border transition-all duration-300 hover:ring-primary/50">
+        <div className="flex cursor-pointer flex-col items-center gap-3">
+          <div className="rounded-full bg-gradient-to-br from-accent/70 via-border to-primary/50 p-[4px] shadow-2xl shadow-black/15 transition-all duration-300 hover:scale-[1.03] hover:shadow-primary/20 dark:shadow-black/35">
             <div
               className={cn(
-                "group relative h-20 w-20 overflow-hidden rounded-full bg-primary/10 md:h-24 md:w-24",
-                "flex items-center justify-center shadow-lg shadow-foreground/5",
-                "transition-all duration-300 hover:scale-[1.03]",
+                "group relative h-24 w-24 overflow-hidden rounded-full bg-primary/10 md:h-28 md:w-28",
+                "flex items-center justify-center ring-1 ring-background/70",
+                "transition-all duration-300",
               )}
               role="button"
               tabIndex={0}
@@ -299,7 +299,7 @@ export function DailyArtOrb() {
               )}
             </div>
           </div>
-          <span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground">
+          <span className="rounded-full border border-border/80 bg-card/70 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground backdrop-blur-sm">
             Картина дня
           </span>
         </div>
