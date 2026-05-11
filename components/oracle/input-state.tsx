@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Eye, EyeOff, HelpCircle, Palette, Send, Settings2, X } from "lucide-react"
+import { Check, Eye, EyeOff, HelpCircle, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -175,36 +175,24 @@ export function InputState({
       </div>
 
       <div className="w-full max-w-3xl">
-        <div className="relative overflow-hidden rounded-[2rem] border border-accent/25 bg-card/70 p-6 shadow-2xl shadow-black/15 backdrop-blur-xl dark:shadow-black/35 md:p-8">
+        <div className="relative overflow-hidden rounded-[2rem] border-y border-accent/25 bg-card/45 p-4 shadow-2xl shadow-black/10 backdrop-blur-xl dark:shadow-black/30 md:p-6">
           <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
-          <div className="relative mb-5 flex flex-col gap-3 border-b border-border/80 pb-5 text-left sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Palette className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                  Запрос к оракулу
-                </p>
-                <p className="mt-1 text-sm text-foreground">Опишите настроение свободно</p>
-              </div>
-            </div>
-            <p className="rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted-foreground">
-              Ctrl + Enter
-            </p>
-          </div>
+          <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
           <div className="relative">
             <textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Сегодня я чувствую себя..."
-              className="w-full min-h-[160px] resize-none rounded-3xl bg-secondary/35 p-5 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[210px] md:text-xl"
+              className="w-full min-h-[170px] resize-none rounded-[1.75rem] bg-secondary/30 p-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/35 md:min-h-[220px] md:text-xl"
               autoFocus
             />
+            <span className="pointer-events-none absolute right-4 top-4 rounded-full border border-border/80 bg-background/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+              Ctrl + Enter
+            </span>
           </div>
 
-          <div className="relative mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               {value.length > 0
                 ? `${value.length} символов`
