@@ -44,26 +44,36 @@ export function UserMenu() {
         setDisplayName(null)
         return
       }
-      const { data } = await supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", current.id)
-        .maybeSingle()
-      setDisplayName(data?.display_name ?? null)
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", current.id)
+          .maybeSingle()
+        setDisplayName(data?.display_name ?? null)
+      } catch {
+        // Network/RLS hiccup — keep email fallback rather than block UI.
+      }
     }
 
-    void supabase.auth.getUser().then(async ({ data }) => {
-      const current = data.user ?? null
-      setUser(current)
-      await loadProfile(current)
-      setIsReady(true)
-    })
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        const current = data.user ?? null
+        setUser(current)
+        setIsReady(true)
+        void loadProfile(current)
+      })
+      .catch(() => {
+        setIsReady(true)
+      })
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         const current = session?.user ?? null
         setUser(current)
-        await loadProfile(current)
+        setIsReady(true)
+        void loadProfile(current)
       },
     )
 
