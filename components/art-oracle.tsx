@@ -15,6 +15,7 @@ import { InputState } from "./oracle/input-state"
 import { LoadingState } from "./oracle/loading-state"
 import { ResultState } from "./oracle/result-state"
 import { ThemeToggle } from "./theme-toggle"
+import { UserMenu } from "./user-menu"
 
 export type OracleStatus = "input" | "loading" | "result"
 
@@ -330,7 +331,8 @@ export function ArtOracle() {
         <div className="absolute bottom-0 left-1/2 h-[24rem] w-[46rem] -translate-x-1/2 rounded-full bg-secondary/10 blur-[180px]" />
       </div>
 
-      <div className="absolute right-5 top-5 z-10 animate-fade-in md:right-6 md:top-6">
+      <div className="absolute right-5 top-5 z-10 flex items-center gap-2 animate-fade-in md:right-6 md:top-6">
+        <UserMenu />
         <ThemeToggle />
       </div>
 
