@@ -86,7 +86,7 @@ export function UserMenu() {
     return (
       <div
         aria-hidden="true"
-        className="h-9 w-20 animate-pulse rounded-md bg-card/40"
+        className="h-9 w-20 animate-pulse rounded-md border border-border bg-card/80"
       />
     )
   }
