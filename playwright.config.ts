@@ -2,6 +2,16 @@ import { defineConfig, devices } from "@playwright/test"
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000"
 
+// Provide harmless placeholder Supabase env vars when none are set so that
+// /login, /register and /account can render during UI tests that don't need
+// real Supabase access.
+const supabaseEnv = {
+  NEXT_PUBLIC_SUPABASE_URL:
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://test.supabase.co",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_test",
+}
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -20,6 +30,7 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: supabaseEnv,
   },
   projects: [
     {
