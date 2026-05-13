@@ -1,4 +1,5 @@
 import type { ArtworkSelectionStrictness } from "@/lib/artwork-selection-strictness"
+import { EMPTY_ARTWORK_SEARCH_INTENT, type ArtworkSearchIntent } from "@/lib/artwork-search-intent"
 
 const SEARCH_PAGE_SIZE = 24
 const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
@@ -457,40 +458,88 @@ function hasPreferredArtType(artwork: MuseumArtwork): boolean {
   return preferredTerms.some((term) => text.includes(term))
 }
 
-function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
-  return searchKeywords.reduce((score, keyword) => {
-    const normalizedKeyword = normalizeSearchText(keyword)
+type ArtworkIntentMatchSummary = {
+  primaryMatches: number
+  secondaryMatches: number
+  sceneMatches: number
+  moodMatches: number
+  weightedScore: number
+}
 
-    if (!normalizedKeyword || normalizedKeyword.length < 3) {
-      return score
-    }
+function getUniqueIntentTerms(terms: string[]): string[] {
+  return Array.from(
+    new Set(
+      terms
+        .map((term) => normalizeSearchText(term))
+        .filter((term) => term.length >= 3),
+    ),
+  )
+}
 
-    if (normalizeSearchText(artwork.title).includes(normalizedKeyword)) {
-      return score + 8
-    }
+function getTermMatchScore(artwork: MuseumArtwork, term: string): number {
+  const normalizedTerm = normalizeSearchText(term)
 
-    if (normalizeSearchText(artwork.subjectTitles.join(" ")).includes(normalizedKeyword)) {
-      return score + 7
-    }
+  if (!normalizedTerm || normalizedTerm.length < 3) {
+    return 0
+  }
 
-    if (normalizeSearchText(artwork.shortDescription || "").includes(normalizedKeyword)) {
-      return score + 5
-    }
+  if (normalizeSearchText(artwork.title).includes(normalizedTerm)) {
+    return 8
+  }
 
-    if (normalizeSearchText(artwork.description || "").includes(normalizedKeyword)) {
-      return score + 4
-    }
+  if (normalizeSearchText(artwork.subjectTitles.join(" ")).includes(normalizedTerm)) {
+    return 7
+  }
 
-    if (
-      normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay].join(" ")).includes(
-        normalizedKeyword,
-      )
-    ) {
-      return score + 2
-    }
+  if (normalizeSearchText(artwork.shortDescription || "").includes(normalizedTerm)) {
+    return 5
+  }
 
-    return score
-  }, 0)
+  if (normalizeSearchText(artwork.description || "").includes(normalizedTerm)) {
+    return 4
+  }
+
+  if (
+    normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay].join(" ")).includes(
+      normalizedTerm,
+    )
+  ) {
+    return 2
+  }
+
+  return 0
+}
+
+function countMatchedTerms(artwork: MuseumArtwork, terms: string[]): number {
+  return getUniqueIntentTerms(terms).filter((term) => getTermMatchScore(artwork, term) > 0).length
+}
+
+function getWeightedMatchScore(artwork: MuseumArtwork, terms: string[], multiplier: number): number {
+  return getUniqueIntentTerms(terms).reduce(
+    (score, term) => score + getTermMatchScore(artwork, term) * multiplier,
+    0,
+  )
+}
+
+function getKeywordRelevanceScore(artwork: MuseumArtwork, searchIntent: ArtworkSearchIntent): number {
+  return getWeightedMatchScore(artwork, searchIntent.searchTerms, 1)
+}
+
+function getArtworkIntentMatchSummary(
+  artwork: MuseumArtwork,
+  searchIntent: ArtworkSearchIntent,
+): ArtworkIntentMatchSummary {
+  return {
+    primaryMatches: countMatchedTerms(artwork, searchIntent.primaryTerms),
+    secondaryMatches: countMatchedTerms(artwork, searchIntent.secondaryTerms),
+    sceneMatches: countMatchedTerms(artwork, searchIntent.sceneTerms),
+    moodMatches: countMatchedTerms(artwork, searchIntent.moodTerms),
+    weightedScore:
+      getWeightedMatchScore(artwork, searchIntent.primaryTerms, 2.4) +
+      getWeightedMatchScore(artwork, searchIntent.secondaryTerms, 1.5) +
+      getWeightedMatchScore(artwork, searchIntent.sceneTerms, 1.15) +
+      getWeightedMatchScore(artwork, searchIntent.moodTerms, 0.85),
+  }
 }
 
 function getStrongKeywordRelevanceThreshold(strictness: ArtworkSelectionStrictness): number {
@@ -525,8 +574,55 @@ function getTopCandidateScoreThreshold(strictness: ArtworkSelectionStrictness): 
   return 8
 }
 
-function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
+function hasStillLifeLean(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const stillLifeTerms = ["still life", "fruit", "bread", "table", "meal", "vase", "flowers", "banquet"]
+
+  return stillLifeTerms.some((term) => text.includes(term))
+}
+
+function hasInteriorFurnitureLean(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const interiorTerms = ["interior", "room", "domestic", "cabinet", "cupboard", "chair", "furniture"]
+
+  return interiorTerms.some((term) => text.includes(term))
+}
+
+function intentRequestsStillLife(searchIntent: ArtworkSearchIntent): boolean {
+  const text = normalizeSearchText(searchIntent.searchTerms.join(" "))
+  return /(food|meal|table|fruit|bread|vase|flower|flowers|still life|banquet)/.test(text)
+}
+
+function intentRequestsInterior(searchIntent: ArtworkSearchIntent): boolean {
+  const text = normalizeSearchText(searchIntent.searchTerms.join(" "))
+  return /(home|room|interior|domestic|bedroom|chair|furniture)/.test(text)
+}
+
+function artworkQualityScore(
+  artwork: MuseumArtwork,
+  searchIntent: ArtworkSearchIntent = EMPTY_ARTWORK_SEARCH_INTENT,
+  strictness: ArtworkSelectionStrictness = "standard",
+): number {
   let score = 0
+  const intentMatch = getArtworkIntentMatchSummary(artwork, searchIntent)
 
   if (!hasWeakTitle(artwork.title)) {
     score += 3
@@ -564,14 +660,31 @@ function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): 
     score -= 8
   }
 
-  score += getKeywordRelevanceScore(artwork, searchKeywords)
+  if (hasStillLifeLean(artwork) && !intentRequestsStillLife(searchIntent)) {
+    score -= strictness === "soft" ? 3 : 8
+  }
+
+  if (
+    hasInteriorFurnitureLean(artwork) &&
+    searchIntent.primaryTerms.length > 0 &&
+    !intentRequestsInterior(searchIntent) &&
+    intentMatch.primaryMatches === 0
+  ) {
+    score -= strictness === "literal" ? 12 : strictness === "precise" ? 9 : 6
+  }
+
+  score += intentMatch.weightedScore
+
+  if (searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
+    score -= strictness === "literal" ? 40 : strictness === "precise" ? 20 : strictness === "standard" ? 10 : 4
+  }
 
   return score
 }
 
 function selectArtworkFromTopCandidates(
   candidates: MuseumArtwork[],
-  searchKeywords: string[],
+  searchIntent: ArtworkSearchIntent,
   recentArtworkSignatures: string[],
   strictness: ArtworkSelectionStrictness,
 ): MuseumArtwork | null {
@@ -590,21 +703,33 @@ function selectArtworkFromTopCandidates(
     .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, searchKeywords),
+      score: artworkQualityScore(artwork, searchIntent, strictness),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const fallbackRanked = uniqueCandidates
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, searchKeywords),
+      score: artworkQualityScore(artwork, searchIntent, strictness),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const relevanceThreshold = getStrongKeywordRelevanceThreshold(strictness)
   const scoreThreshold = getTopCandidateScoreThreshold(strictness)
   const stronglyRelevantCandidates = ranked.filter(
-    (item) => getKeywordRelevanceScore(item.artwork, searchKeywords) >= relevanceThreshold,
+    (item) => {
+      const intentMatch = getArtworkIntentMatchSummary(item.artwork, searchIntent)
+
+      if (strictness === "literal" && searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
+        return false
+      }
+
+      if (strictness === "precise" && searchIntent.primaryTerms.length > 0) {
+        return intentMatch.primaryMatches > 0 || intentMatch.secondaryMatches > 0
+      }
+
+      return getKeywordRelevanceScore(item.artwork, searchIntent) >= relevanceThreshold
+    },
   )
   const topCandidates = stronglyRelevantCandidates
     .filter((item) => item.score >= scoreThreshold)
@@ -637,14 +762,14 @@ export function selectRandomDisplayArtworks(
     .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, []),
+      score: artworkQualityScore(artwork),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const fallbackRanked = uniqueCandidates
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, []),
+      score: artworkQualityScore(artwork),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
@@ -1264,15 +1389,15 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
 ]
 
 export async function fetchArtworkFromMuseums(
-  searchKeywords: string[],
+  searchIntent: ArtworkSearchIntent,
   searchContext: MuseumSearchContext,
   strictness: ArtworkSelectionStrictness = "standard",
 ): Promise<MuseumArtwork> {
   const fallbackKeywords =
-    strictness === "literal" || strictness === "precise"
-      ? []
-      : ["still life", "landscape", "interior", "nature", "portrait"]
-  const keywords = Array.from(new Set([...searchKeywords, ...fallbackKeywords]))
+    strictness === "soft"
+      ? searchIntent.moodTerms.slice(0, 2)
+      : []
+  const keywords = Array.from(new Set([...searchIntent.searchTerms, ...fallbackKeywords])).slice(0, 8)
   const providerResults = await Promise.all(
     keywords.slice(0, 6).flatMap((keyword) =>
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
@@ -1288,7 +1413,7 @@ export async function fetchArtworkFromMuseums(
   const pooledArtwork = providerResults.flat()
   const pooledSelection = selectArtworkFromTopCandidates(
     pooledArtwork,
-    searchKeywords,
+    searchIntent,
     searchContext.recentArtworkSignatures,
     strictness,
   )
@@ -1311,7 +1436,7 @@ export async function fetchArtworkFromMuseums(
     const candidates = providerResults.flat()
     const bestArtwork = selectArtworkFromTopCandidates(
       candidates,
-      searchKeywords,
+      searchIntent,
       searchContext.recentArtworkSignatures,
       strictness,
     )

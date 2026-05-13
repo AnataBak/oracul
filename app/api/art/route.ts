@@ -7,6 +7,10 @@ import {
 import { requestGeminiText, type GeminiInlineImage } from "../gemini"
 import { sanitizeGeminiTextChain, type GeminiTextModel } from "@/lib/gemini-models"
 import {
+  EMPTY_ARTWORK_SEARCH_INTENT,
+  type ArtworkSearchIntent,
+} from "@/lib/artwork-search-intent"
+import {
   DEFAULT_ARTWORK_SELECTION_STRICTNESS,
   isArtworkSelectionStrictness,
   type ArtworkSelectionStrictness,
@@ -82,6 +86,161 @@ function getIntentExpansionTerms(userText: string): string[] {
   }
 
   return terms
+}
+
+function mergeTerms(...groups: string[][]): string[] {
+  return uniqueSearchTerms(groups.flat(), 12)
+}
+
+function extractIntentFromJson(value: string): ArtworkSearchIntent {
+  try {
+    const parsedValue = JSON.parse(value.replace(/^```json\s*/i, "").replace(/```$/i, "").trim()) as {
+      [name: string]: unknown
+    }
+
+    return {
+      primaryTerms: uniqueSearchTerms(
+        Array.isArray(parsedValue.primarySubjects)
+          ? parsedValue.primarySubjects.filter((item): item is string => typeof item === "string")
+          : [],
+        6,
+      ),
+      secondaryTerms: uniqueSearchTerms(
+        Array.isArray(parsedValue.secondarySubjects)
+          ? parsedValue.secondarySubjects.filter((item): item is string => typeof item === "string")
+          : [],
+        6,
+      ),
+      sceneTerms: uniqueSearchTerms(
+        Array.isArray(parsedValue.sceneTerms)
+          ? parsedValue.sceneTerms.filter((item): item is string => typeof item === "string")
+          : [],
+        6,
+      ),
+      moodTerms: uniqueSearchTerms(
+        Array.isArray(parsedValue.moodTerms)
+          ? parsedValue.moodTerms.filter((item): item is string => typeof item === "string")
+          : [],
+        6,
+      ),
+      searchTerms: uniqueSearchTerms(
+        Array.isArray(parsedValue.searchTerms)
+          ? parsedValue.searchTerms.filter((item): item is string => typeof item === "string")
+          : [],
+        12,
+      ),
+    }
+  } catch {
+    return EMPTY_ARTWORK_SEARCH_INTENT
+  }
+}
+
+function getHeuristicSearchIntent(userText: string): ArtworkSearchIntent {
+  const normalizedText = userText.toLowerCase()
+  const primaryTerms: string[] = []
+  const secondaryTerms: string[] = []
+  const sceneTerms: string[] = []
+  const moodTerms: string[] = []
+
+  if (/(кот|кошк|котик|коты|cat|cats|kitten|feline)/i.test(normalizedText)) {
+    primaryTerms.push("cat", "kitten", "feline")
+  }
+
+  if (/(собак|пес|пёс|щен|dog|dogs|puppy|canine)/i.test(normalizedText)) {
+    primaryTerms.push("dog", "puppy", "canine")
+  }
+
+  if (/(птиц|bird|birds)/i.test(normalizedText)) {
+    primaryTerms.push("bird")
+  }
+
+  if (/(человек|люди|мужчин|женщин|ребен|ребён|person|people|woman|man|child)/i.test(normalizedText)) {
+    primaryTerms.push("figure", "person")
+  }
+
+  if (/(дом|дома|комнат|квартир|home|room|indoor|indoors)/i.test(normalizedText)) {
+    sceneTerms.push("home", "domestic", "interior")
+  }
+
+  if (/(вечер|вечером|ноч|сумерк|закат|evening|night|twilight|dusk)/i.test(normalizedText)) {
+    sceneTerms.push("evening", "night", "twilight")
+  }
+
+  if (/(утр|рассвет|morning|dawn|sunrise)/i.test(normalizedText)) {
+    sceneTerms.push("morning", "dawn")
+  }
+
+  if (/(дожд|ливен|rain|storm)/i.test(normalizedText)) {
+    sceneTerms.push("rain", "storm")
+  }
+
+  if (/(море|океан|река|озер|sea|ocean|river|lake)/i.test(normalizedText)) {
+    sceneTerms.push("sea", "ocean", "river", "water")
+  }
+
+  if (/(лес|парк|сад|дерев|forest|park|garden|tree)/i.test(normalizedText)) {
+    sceneTerms.push("forest", "garden", "tree", "landscape")
+  }
+
+  if (/(еда|есть|ем|ужин|обед|завтрак|десерт|пицц|food|meal|dinner|lunch|breakfast|dessert|pizza)/i.test(normalizedText)) {
+    primaryTerms.push("food", "meal")
+    sceneTerms.push("table", "still life")
+  }
+
+  if (/(уют|тёпл|тепл|cozy|cosy|warm)/i.test(normalizedText)) {
+    moodTerms.push("cozy", "warmth", "intimacy")
+  }
+
+  if (/(тихо|спокой|мягк|calm|quiet|peaceful|peace)/i.test(normalizedText)) {
+    moodTerms.push("quiet", "calm", "serenity")
+  }
+
+  if (/(груст|печал|скучн|одиноко|меланх|sad|lonely|melancholy|bored)/i.test(normalizedText)) {
+    moodTerms.push("melancholy", "solitude", "quiet")
+  }
+
+  if (/(радост|счаст|весел|joy|happy|delight)/i.test(normalizedText)) {
+    moodTerms.push("joy", "delight", "celebration")
+  }
+
+  if (primaryTerms.length === 0 && /(друз|семь|family|friend)/i.test(normalizedText)) {
+    secondaryTerms.push("companionship", "gathering")
+  }
+
+  return {
+    primaryTerms: uniqueSearchTerms(primaryTerms, 6),
+    secondaryTerms: uniqueSearchTerms(secondaryTerms, 6),
+    sceneTerms: uniqueSearchTerms(sceneTerms, 6),
+    moodTerms: uniqueSearchTerms(moodTerms, 6),
+    searchTerms: [],
+  }
+}
+
+function mergeSearchIntent(modelIntent: ArtworkSearchIntent, heuristicIntent: ArtworkSearchIntent): ArtworkSearchIntent {
+  const primaryTerms = uniqueSearchTerms(
+    [...heuristicIntent.primaryTerms, ...modelIntent.primaryTerms],
+    6,
+  )
+  const secondaryTerms = uniqueSearchTerms(
+    [...heuristicIntent.secondaryTerms, ...modelIntent.secondaryTerms],
+    6,
+  )
+  const sceneTerms = uniqueSearchTerms(
+    [...heuristicIntent.sceneTerms, ...modelIntent.sceneTerms],
+    6,
+  )
+  const moodTerms = uniqueSearchTerms(
+    [...heuristicIntent.moodTerms, ...modelIntent.moodTerms],
+    6,
+  )
+
+  return {
+    primaryTerms,
+    secondaryTerms,
+    sceneTerms,
+    moodTerms,
+    searchTerms: mergeTerms(primaryTerms, secondaryTerms, sceneTerms, moodTerms, modelIntent.searchTerms),
+  }
 }
 
 function rememberArtworkId(artworkId: string) {
@@ -194,6 +353,80 @@ function applySelectionStrictnessToKeywords(
   }
 
   return searchKeywords
+}
+
+function trimSceneTermsForLiteral(sceneTerms: string[], hasPrimaryTerms: boolean): string[] {
+  if (!hasPrimaryTerms) {
+    return sceneTerms
+  }
+
+  const genericBackgroundTerms = new Set(["home", "domestic", "interior", "room"])
+
+  return sceneTerms.filter((term) => !genericBackgroundTerms.has(term))
+}
+
+function applySelectionStrictnessToIntent(
+  baseIntent: ArtworkSearchIntent,
+  strictness: ArtworkSelectionStrictness,
+): ArtworkSearchIntent {
+  if (strictness === "soft") {
+    return {
+      ...baseIntent,
+      searchTerms: mergeTerms(
+        baseIntent.moodTerms,
+        baseIntent.sceneTerms,
+        baseIntent.primaryTerms,
+        baseIntent.secondaryTerms,
+      ).slice(0, 12),
+    }
+  }
+
+  if (strictness === "literal") {
+    return {
+      ...baseIntent,
+      searchTerms: mergeTerms(
+        baseIntent.primaryTerms,
+        trimSceneTermsForLiteral(baseIntent.sceneTerms, baseIntent.primaryTerms.length > 0),
+        baseIntent.secondaryTerms,
+      ).slice(0, 8),
+    }
+  }
+
+  if (strictness === "precise") {
+    return {
+      ...baseIntent,
+      searchTerms: mergeTerms(
+        baseIntent.primaryTerms,
+        baseIntent.secondaryTerms,
+        baseIntent.sceneTerms,
+        baseIntent.moodTerms.slice(0, 2),
+      ).slice(0, 8),
+    }
+  }
+
+  return {
+    ...baseIntent,
+    searchTerms: mergeTerms(
+      baseIntent.primaryTerms,
+      baseIntent.sceneTerms,
+      baseIntent.moodTerms,
+      baseIntent.secondaryTerms,
+    ).slice(0, 10),
+  }
+}
+
+function buildIntentFromKeywords(searchKeywords: string[], userText: string): ArtworkSearchIntent {
+  const heuristicIntent = getHeuristicSearchIntent(userText)
+
+  return {
+    ...heuristicIntent,
+    searchTerms: mergeTerms(
+      heuristicIntent.primaryTerms,
+      heuristicIntent.sceneTerms,
+      heuristicIntent.moodTerms,
+      searchKeywords,
+    ),
+  }
 }
 
 function getVisualAnalysisInstructions(): string {
@@ -331,6 +564,56 @@ async function buildKeywordCandidates(
   return uniqueSearchTerms([...expandedKeywords, ...primaryKeywords, ...fallbackKeywords], 12)
 }
 
+async function buildSearchIntent(
+  userText: string,
+  modelChain?: readonly string[],
+): Promise<ArtworkSearchIntent> {
+  const { text: rawIntent } = await requestGeminiText(
+    `Read this text: "${userText}".
+Return strict JSON with no markdown:
+{
+  "primarySubjects": ["term 1", "term 2"],
+  "secondarySubjects": ["term 3", "term 4"],
+  "sceneTerms": ["term 5", "term 6"],
+  "moodTerms": ["term 7", "term 8"],
+  "searchTerms": ["term 1", "term 5", "term 7"]
+}
+
+Rules:
+- Use only English museum-search words or short phrases.
+- primarySubjects: the main things the user most wants to see in the image.
+- secondarySubjects: important but not central things.
+- sceneTerms: time, place, setting, environment.
+- moodTerms: atmosphere or emotional tone.
+- If there is a concrete animal, person, or object, do not make home, room, interior, or domestic a primary subject.
+- Do not add still life, portrait, landscape, or interior unless the user clearly asks for that kind of image.
+- Keep the most useful search words only.
+- Maximum: 2 primarySubjects, 3 secondarySubjects, 4 sceneTerms, 4 moodTerms, 8 searchTerms.`,
+    0.2,
+    undefined,
+    modelChain,
+  )
+
+  const structuredIntent = extractIntentFromJson(rawIntent)
+  const heuristicIntent = getHeuristicSearchIntent(userText)
+  const mergedIntent = mergeSearchIntent(structuredIntent, heuristicIntent)
+
+  if (mergedIntent.searchTerms.length > 0) {
+    return mergedIntent
+  }
+
+  const fallbackKeywords = await buildKeywordCandidates(userText, modelChain)
+
+  return {
+    ...heuristicIntent,
+    searchTerms: mergeTerms(
+      heuristicIntent.primaryTerms,
+      heuristicIntent.sceneTerms,
+      fallbackKeywords,
+    ),
+  }
+}
+
 async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
@@ -421,21 +704,22 @@ export async function POST(request: Request) {
       body.geminiTextModelChain,
     )
     const geminiTextModelChain = sanitizedGeminiChain ?? undefined
-    const baseSearchKeywords =
+    const baseSearchIntent =
       clientSearchKeywords.length > 0
-        ? clientSearchKeywords
-        : await buildKeywordCandidates(userText, geminiTextModelChain)
-    const searchKeywords = applySelectionStrictnessToKeywords(
-      userText,
-      baseSearchKeywords,
+        ? buildIntentFromKeywords(clientSearchKeywords, userText)
+        : await buildSearchIntent(userText, geminiTextModelChain)
+    const searchIntent = applySelectionStrictnessToIntent(baseSearchIntent, selectionStrictness)
+    const searchKeywords = searchIntent.searchTerms
+    const artwork = await fetchArtworkFromMuseums(
+      searchIntent,
+      {
+        recentArtworkIds: Array.from(new Set([...clientRecentArtworkIds, ...recentArtworkIds])),
+        recentArtworkSignatures: Array.from(
+          new Set([...clientRecentArtworkSignatures, ...recentArtworkSignatures]),
+        ),
+      },
       selectionStrictness,
     )
-    const artwork = await fetchArtworkFromMuseums(searchKeywords, {
-      recentArtworkIds: Array.from(new Set([...clientRecentArtworkIds, ...recentArtworkIds])),
-      recentArtworkSignatures: Array.from(
-        new Set([...clientRecentArtworkSignatures, ...recentArtworkSignatures]),
-      ),
-    }, selectionStrictness)
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 
