@@ -5,6 +5,14 @@ import { Check, Eye, EyeOff, Filter, HelpCircle, Send, Settings2, X } from "luci
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -155,7 +163,7 @@ export function InputState({
   const [openSettingsHelpId, setOpenSettingsHelpId] = useState<string | null>(null)
   const [openFilterHelpId, setOpenFilterHelpId] = useState<string | null>(null)
   const [isEyeHelpOpen, setIsEyeHelpOpen] = useState(false)
-  const [isFilterHelpOpen, setIsFilterHelpOpen] = useState(false)
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const eyeHelpText = visualAnalysisEnabled
     ? "Глаз открыт: нейросеть визуально оценивает выбранную картину и сверяет изображение с музейным описанием."
     : "Глаз закрыт: поиск и ответ строятся только по музейному описанию, без визуальной оценки изображения."
@@ -220,17 +228,17 @@ export function InputState({
               autoFocus
             />
             <div className="absolute right-0 top-0 flex items-start gap-2">
-              <Popover
-                open={isFilterHelpOpen}
+              <Dialog
+                open={isFilterDialogOpen}
                 onOpenChange={(open) => {
-                  setIsFilterHelpOpen(open)
+                  setIsFilterDialogOpen(open)
 
                   if (!open) {
                     setOpenFilterHelpId(null)
                   }
                 }}
               >
-                <PopoverTrigger asChild>
+                <DialogTrigger asChild>
                   <Button
                     type="button"
                     variant="outline"
@@ -240,20 +248,19 @@ export function InputState({
                     <span className="hidden sm:inline">Фильтры</span>
                     <span>{filtersButtonLabel}</span>
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  sideOffset={8}
-                  className="w-[calc(100vw-1.5rem)] max-w-[26rem] rounded-2xl border-border p-3 sm:w-[24rem]"
+                </DialogTrigger>
+                <DialogContent
+                  showCloseButton={false}
+                  className="w-[calc(100vw-1.5rem)] max-w-[26rem] gap-0 rounded-2xl border-border p-0 sm:max-w-[28rem]"
                 >
-                  <div className="mb-3 px-1">
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Типы работ</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                  <DialogHeader className="border-b border-border px-4 py-4 text-left">
+                    <DialogTitle className="text-base">Типы работ</DialogTitle>
+                    <DialogDescription className="mt-1 text-sm text-muted-foreground">
                       Оставьте галочки только на тех типах музейных работ, которые хотите видеть в подборе.
-                    </p>
-                  </div>
+                    </DialogDescription>
+                  </DialogHeader>
 
-                  <div className="max-h-[min(60vh,24rem)] space-y-2 overflow-y-auto pr-1">
+                  <div className="max-h-[min(70vh,32rem)] space-y-2 overflow-y-auto px-3 py-3">
                     {ARTWORK_TYPE_FILTER_OPTIONS.map((option) => {
                       const isSelected = artworkTypeFilters.includes(option.id)
 
@@ -297,7 +304,7 @@ export function InputState({
                     })}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
                     <span>
                       {allArtworkTypesSelected
                         ? "Сейчас поиск идёт по всем типам работ."
@@ -313,8 +320,8 @@ export function InputState({
                       Выбрать всё
                     </button>
                   </div>
-                </PopoverContent>
-              </Popover>
+                </DialogContent>
+              </Dialog>
 
               <span className="pointer-events-none rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
                 Ctrl + Enter
