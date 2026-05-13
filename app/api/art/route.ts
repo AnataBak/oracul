@@ -11,6 +11,10 @@ import {
   type ArtworkSearchIntent,
 } from "@/lib/artwork-search-intent"
 import {
+  sanitizeArtworkTypeFilters,
+  type ArtworkTypeFilter,
+} from "@/lib/artwork-type-filters"
+import {
   DEFAULT_ARTWORK_SELECTION_STRICTNESS,
   isArtworkSelectionStrictness,
   type ArtworkSelectionStrictness,
@@ -678,6 +682,7 @@ export async function POST(request: Request) {
       oracleVoice?: unknown
       visualAnalysisEnabled?: unknown
       selectionStrictness?: unknown
+      artworkTypeFilters?: unknown
       geminiTextModelChain?: unknown
     }
 
@@ -700,6 +705,7 @@ export async function POST(request: Request) {
     const oracleVoice = isOracleVoice(body.oracleVoice) ? body.oracleVoice : DEFAULT_ORACLE_VOICE
     const visualAnalysisEnabled = isVisualAnalysisEnabled(body.visualAnalysisEnabled)
     const selectionStrictness = getSelectionStrictness(body.selectionStrictness)
+    const artworkTypeFilters: ArtworkTypeFilter[] = sanitizeArtworkTypeFilters(body.artworkTypeFilters)
     const sanitizedGeminiChain: GeminiTextModel[] | null = sanitizeGeminiTextChain(
       body.geminiTextModelChain,
     )
@@ -719,6 +725,7 @@ export async function POST(request: Request) {
         ),
       },
       selectionStrictness,
+      artworkTypeFilters,
     )
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)

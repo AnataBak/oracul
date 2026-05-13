@@ -1,5 +1,9 @@
 import type { ArtworkSelectionStrictness } from "@/lib/artwork-selection-strictness"
 import { EMPTY_ARTWORK_SEARCH_INTENT, type ArtworkSearchIntent } from "@/lib/artwork-search-intent"
+import {
+  areAllArtworkTypeFiltersSelected,
+  type ArtworkTypeFilter,
+} from "@/lib/artwork-type-filters"
 
 const SEARCH_PAGE_SIZE = 24
 const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
@@ -464,6 +468,89 @@ type ArtworkIntentMatchSummary = {
   sceneMatches: number
   moodMatches: number
   weightedScore: number
+}
+
+function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[] {
+  const text = normalizeSearchText(
+    [
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.title,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const matches = new Set<ArtworkTypeFilter>()
+
+  if (/(painting|oil on canvas|oil on panel|acrylic|tempera|panel painting|altarpiece|icon)/.test(text)) {
+    matches.add("painting")
+  }
+
+  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil)/.test(text)) {
+    matches.add("drawing")
+  }
+
+  if (/(print|engraving|etching|lithograph|woodcut|screenprint|mezzotint|aquatint|etching)/.test(text)) {
+    matches.add("print")
+  }
+
+  if (/(photograph|photography|albumen|gelatin silver|chromogenic|photo)/.test(text)) {
+    matches.add("photograph")
+  }
+
+  if (/(sculpture|statue|statuette|bust|bronze|carving|relief)/.test(text)) {
+    matches.add("sculpture")
+  }
+
+  if (/(textile|tapestry|embroidery|woven|fabric|costume|garment)/.test(text)) {
+    matches.add("textile")
+  }
+
+  if (/(ceramic|ceramics|porcelain|earthenware|stoneware|pottery|vase)/.test(text)) {
+    matches.add("ceramic")
+  }
+
+  if (/(jewelry|jewellery|metalwork|glass|decorative art|object|vessel|silver|gold|lacquer)/.test(text)) {
+    matches.add("decorative")
+  }
+
+  if (/(furniture|chair|cabinet|table|desk|wardrobe|cupboard|sofa)/.test(text)) {
+    matches.add("furniture")
+  }
+
+  if (/(manuscript|book|leaf|poster|broadside|print poster|banner|page|codex)/.test(text)) {
+    matches.add("manuscript")
+  }
+
+  if (matches.size === 0 && /photograph/.test(normalizeSearchText(artwork.source))) {
+    matches.add("photograph")
+  }
+
+  if (matches.size === 0 && /sculpture/.test(normalizeSearchText(artwork.classificationTitle))) {
+    matches.add("sculpture")
+  }
+
+  if (matches.size === 0) {
+    matches.add("decorative")
+  }
+
+  return Array.from(matches)
+}
+
+function filterArtworksByType(
+  artworks: MuseumArtwork[],
+  artworkTypeFilters: ArtworkTypeFilter[],
+): MuseumArtwork[] {
+  if (artworkTypeFilters.length === 0 || areAllArtworkTypeFiltersSelected(artworkTypeFilters)) {
+    return artworks
+  }
+
+  const allowedTypes = new Set(artworkTypeFilters)
+
+  return artworks.filter((artwork) =>
+    getArtworkTypeFilterMatches(artwork).some((typeId) => allowedTypes.has(typeId)),
+  )
 }
 
 function getUniqueIntentTerms(terms: string[]): string[] {
@@ -1392,6 +1479,7 @@ export async function fetchArtworkFromMuseums(
   searchIntent: ArtworkSearchIntent,
   searchContext: MuseumSearchContext,
   strictness: ArtworkSelectionStrictness = "standard",
+  artworkTypeFilters: ArtworkTypeFilter[] = [],
 ): Promise<MuseumArtwork> {
   const fallbackKeywords =
     strictness === "soft"
@@ -1410,7 +1498,7 @@ export async function fetchArtworkFromMuseums(
       }),
     ),
   )
-  const pooledArtwork = providerResults.flat()
+  const pooledArtwork = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
   const pooledSelection = selectArtworkFromTopCandidates(
     pooledArtwork,
     searchIntent,
@@ -1433,7 +1521,7 @@ export async function fetchArtworkFromMuseums(
         }
       }),
     )
-    const candidates = providerResults.flat()
+    const candidates = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
     const bestArtwork = selectArtworkFromTopCandidates(
       candidates,
       searchIntent,
