@@ -153,6 +153,7 @@ export function InputState({
     ORACLE_VOICE_OPTIONS.find((voice) => voice.id === selectedVoice) || ORACLE_VOICE_OPTIONS[0]
   const selectedStrictnessOption = getArtworkSelectionStrictnessOption(selectionStrictness)
   const [openSettingsHelpId, setOpenSettingsHelpId] = useState<string | null>(null)
+  const [openFilterHelpId, setOpenFilterHelpId] = useState<string | null>(null)
   const [isEyeHelpOpen, setIsEyeHelpOpen] = useState(false)
   const [isFilterHelpOpen, setIsFilterHelpOpen] = useState(false)
   const eyeHelpText = visualAnalysisEnabled
@@ -219,7 +220,16 @@ export function InputState({
               autoFocus
             />
             <div className="absolute right-0 top-0 flex items-start gap-2">
-              <Popover open={isFilterHelpOpen} onOpenChange={setIsFilterHelpOpen}>
+              <Popover
+                open={isFilterHelpOpen}
+                onOpenChange={(open) => {
+                  setIsFilterHelpOpen(open)
+
+                  if (!open) {
+                    setOpenFilterHelpId(null)
+                  }
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
@@ -231,7 +241,11 @@ export function InputState({
                     <span>{filtersButtonLabel}</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-[calc(100vw-2rem)] rounded-2xl border-border p-3 sm:w-[25rem]">
+                <PopoverContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-[calc(100vw-1.5rem)] max-w-[26rem] rounded-2xl border-border p-3 sm:w-[24rem]"
+                >
                   <div className="mb-3 px-1">
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Типы работ</p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -239,32 +253,46 @@ export function InputState({
                     </p>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="max-h-[min(60vh,24rem)] space-y-2 overflow-y-auto pr-1">
                     {ARTWORK_TYPE_FILTER_OPTIONS.map((option) => {
                       const isSelected = artworkTypeFilters.includes(option.id)
 
                       return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => toggleArtworkTypeFilter(option.id)}
-                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
-                            isSelected
-                              ? "border-primary/30 bg-primary/10"
-                              : "border-border bg-background/40 hover:bg-primary/5"
-                          }`}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            className="pointer-events-none mt-0.5"
-                          />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium text-foreground">{option.label}</span>
-                            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                              {option.description}
-                            </span>
-                          </span>
-                        </button>
+                        <div key={option.id} className="space-y-2">
+                          <div
+                            className={`flex items-center gap-2 rounded-xl border p-1 transition-colors ${
+                              isSelected
+                                ? "border-primary/30 bg-primary/10"
+                                : "border-border bg-background/40 hover:bg-primary/5"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleArtworkTypeFilter(option.id)}
+                              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                className="pointer-events-none"
+                              />
+                              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                                {option.label}
+                              </span>
+                            </button>
+                            <HelpButton
+                              label={`Что значит ${option.label}`}
+                              onClick={() =>
+                                setOpenFilterHelpId(openFilterHelpId === option.id ? null : option.id)
+                              }
+                            />
+                          </div>
+                          {openFilterHelpId === option.id ? (
+                            <HelpPanel
+                              text={option.description}
+                              onClose={() => setOpenFilterHelpId(null)}
+                            />
+                          ) : null}
+                        </div>
                       )
                     })}
                   </div>
