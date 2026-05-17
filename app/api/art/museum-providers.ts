@@ -483,43 +483,47 @@ function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[
   )
   const matches = new Set<ArtworkTypeFilter>()
 
-  if (/(painting|oil on canvas|oil on panel|acrylic|tempera|panel painting|altarpiece|icon)/.test(text)) {
+  if (/(painting|oil on canvas|oil on panel|oil on board|oil on wood|oil on linen|acrylic|tempera|panel painting|altarpiece|icon|fresco|mural|encaustic)/.test(text)) {
     matches.add("painting")
   }
 
-  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil)/.test(text)) {
+  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil|sketch)/.test(text)) {
     matches.add("drawing")
   }
 
-  if (/(print|engraving|etching|lithograph|woodcut|screenprint|mezzotint|aquatint|etching)/.test(text)) {
+  if (/(print|engraving|etching|lithograph|woodcut|screenprint|mezzotint|aquatint|drypoint)/.test(text)) {
     matches.add("print")
   }
 
-  if (/(photograph|photography|albumen|gelatin silver|chromogenic|photo)/.test(text)) {
+  if (/(photograph|photography|albumen|gelatin silver|chromogenic|daguerreotype|tintype|photo)/.test(text)) {
     matches.add("photograph")
   }
 
-  if (/(sculpture|statue|statuette|bust|bronze|carving|relief)/.test(text)) {
+  if (/(sculpture|statue|statuette|bust|bronze|carving|relief|figurine)/.test(text)) {
     matches.add("sculpture")
   }
 
-  if (/(textile|tapestry|embroidery|woven|fabric|costume|garment)/.test(text)) {
+  if (/(textile|tapestry|embroidery|woven|fabric|costume|garment|silk)/.test(text)) {
     matches.add("textile")
   }
 
-  if (/(ceramic|ceramics|porcelain|earthenware|stoneware|pottery|vase)/.test(text)) {
+  if (/(ceramic|ceramics|porcelain|earthenware|stoneware|pottery|vase|terracotta|maiolica)/.test(text)) {
     matches.add("ceramic")
   }
 
-  if (/(jewelry|jewellery|metalwork|glass|decorative art|object|vessel|silver|gold|lacquer)/.test(text)) {
+  if (
+    /(jewelry|jewellery|metalwork|glass|decorative art|object|vessel|silver|gold|lacquer|container|tray|tankard|chalice|goblet|flask|urn|casket|coin|medal|enamel|ivory|amber|jade|cup|bowl|plate|dish|pitcher|ewer|salver|candelabrum|candlestick|tureen|teapot|kettle|hilt|sword|dagger|armor|armour|helmet|pendant|brooch|bracelet|necklace|medallion|clock|mirror|seal|netsuke|inro|snuff)/.test(
+      text,
+    )
+  ) {
     matches.add("decorative")
   }
 
-  if (/(furniture|chair|cabinet|table|desk|wardrobe|cupboard|sofa)/.test(text)) {
+  if (/(furniture|chair|cabinet|table|desk|wardrobe|cupboard|sofa|settee|bench|stool|chest|armchair|bed)/.test(text)) {
     matches.add("furniture")
   }
 
-  if (/(manuscript|book|leaf|poster|broadside|print poster|banner|page|codex)/.test(text)) {
+  if (/(manuscript|book|leaf|poster|broadside|print poster|banner|page|codex|folio|illuminated)/.test(text)) {
     matches.add("manuscript")
   }
 
