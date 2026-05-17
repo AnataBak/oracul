@@ -8,6 +8,11 @@ import {
   isArtworkSelectionStrictness,
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
+import {
+  DEFAULT_ARTWORK_TYPE_FILTERS,
+  sanitizeArtworkTypeFilters,
+  type ArtworkTypeFilter,
+} from "@/lib/artwork-type-filters"
 import { DEFAULT_ORACLE_VOICE, isOracleVoice, type OracleVoice } from "@/lib/oracle-voices"
 import { useGeminiTextChain } from "@/lib/model-preferences"
 import { ErrorNotice } from "./oracle/error-notice"
@@ -23,6 +28,7 @@ const RECENT_ARTWORK_STORAGE_KEY = "art-oracle-recent-artworks"
 const ORACLE_VOICE_STORAGE_KEY = "art-oracle-voice"
 const VISUAL_ANALYSIS_STORAGE_KEY = "art-oracle-visual-analysis"
 const SELECTION_STRICTNESS_STORAGE_KEY = "art-oracle-selection-strictness"
+const ARTWORK_TYPE_FILTERS_STORAGE_KEY = "art-oracle-artwork-type-filters"
 const RECENT_ARTWORK_LIMIT = 100
 
 type UiError = {
@@ -159,6 +165,24 @@ function readSavedSelectionStrictness(): ArtworkSelectionStrictness {
     : DEFAULT_ARTWORK_SELECTION_STRICTNESS
 }
 
+function readSavedArtworkTypeFilters(): ArtworkTypeFilter[] {
+  if (typeof window === "undefined") {
+    return DEFAULT_ARTWORK_TYPE_FILTERS
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(ARTWORK_TYPE_FILTERS_STORAGE_KEY)
+
+    if (!rawValue) {
+      return DEFAULT_ARTWORK_TYPE_FILTERS
+    }
+
+    return sanitizeArtworkTypeFilters(JSON.parse(rawValue))
+  } catch {
+    return DEFAULT_ARTWORK_TYPE_FILTERS
+  }
+}
+
 export function ArtOracle() {
   const [status, setStatus] = useState<OracleStatus>("input")
   const [userText, setUserText] = useState("")
@@ -166,6 +190,9 @@ export function ArtOracle() {
   const [visualAnalysisEnabled, setVisualAnalysisEnabled] = useState(true)
   const [selectionStrictness, setSelectionStrictness] = useState<ArtworkSelectionStrictness>(
     DEFAULT_ARTWORK_SELECTION_STRICTNESS,
+  )
+  const [artworkTypeFilters, setArtworkTypeFilters] = useState<ArtworkTypeFilter[]>(
+    DEFAULT_ARTWORK_TYPE_FILTERS,
   )
   const textChain = useGeminiTextChain()
   const [isVisible, setIsVisible] = useState(false)
@@ -186,6 +213,7 @@ export function ArtOracle() {
     setSelectedVoice(readSavedOracleVoice())
     setVisualAnalysisEnabled(readSavedVisualAnalysisEnabled())
     setSelectionStrictness(readSavedSelectionStrictness())
+    setArtworkTypeFilters(readSavedArtworkTypeFilters())
   }, [])
 
   const handleVoiceChange = (voice: OracleVoice) => {
@@ -215,6 +243,15 @@ export function ArtOracle() {
     }
   }
 
+  const handleArtworkTypeFiltersChange = (filters: ArtworkTypeFilter[]) => {
+    setArtworkTypeFilters(filters)
+    setUiError(null)
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ARTWORK_TYPE_FILTERS_STORAGE_KEY, JSON.stringify(filters))
+    }
+  }
+
   const requestArtwork = async (text: string, searchKeywords?: string[]): Promise<OracleResult> => {
     const recentArtworkMemory = readRecentArtworkMemory()
     const response = await fetch("/api/art", {
@@ -230,6 +267,7 @@ export function ArtOracle() {
         oracleVoice: selectedVoice,
         visualAnalysisEnabled,
         selectionStrictness,
+        artworkTypeFilters,
         geminiTextModelChain: textChain.chain,
       }),
     })
@@ -373,6 +411,7 @@ export function ArtOracle() {
                 selectedVoice={selectedVoice}
                 visualAnalysisEnabled={visualAnalysisEnabled}
                 selectionStrictness={selectionStrictness}
+                artworkTypeFilters={artworkTypeFilters}
                 onChange={(nextValue) => {
                   setUserText(nextValue)
                   setUiError(null)
@@ -380,6 +419,7 @@ export function ArtOracle() {
                 onVoiceChange={handleVoiceChange}
                 onVisualAnalysisChange={handleVisualAnalysisChange}
                 onSelectionStrictnessChange={handleSelectionStrictnessChange}
+                onArtworkTypeFiltersChange={handleArtworkTypeFiltersChange}
                 onSubmit={handleSubmit}
               />
             </div>

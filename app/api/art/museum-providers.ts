@@ -1,4 +1,9 @@
 import type { ArtworkSelectionStrictness } from "@/lib/artwork-selection-strictness"
+import { EMPTY_ARTWORK_SEARCH_INTENT, type ArtworkSearchIntent } from "@/lib/artwork-search-intent"
+import {
+  areAllArtworkTypeFiltersSelected,
+  type ArtworkTypeFilter,
+} from "@/lib/artwork-type-filters"
 
 const SEARCH_PAGE_SIZE = 24
 const SEARCH_OFFSETS = [0, 24, 48, 72, 96]
@@ -457,40 +462,177 @@ function hasPreferredArtType(artwork: MuseumArtwork): boolean {
   return preferredTerms.some((term) => text.includes(term))
 }
 
-function getKeywordRelevanceScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
-  return searchKeywords.reduce((score, keyword) => {
-    const normalizedKeyword = normalizeSearchText(keyword)
+type ArtworkIntentMatchSummary = {
+  primaryMatches: number
+  secondaryMatches: number
+  sceneMatches: number
+  moodMatches: number
+  weightedScore: number
+}
 
-    if (!normalizedKeyword || normalizedKeyword.length < 3) {
-      return score
+function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[] {
+  const text = normalizeSearchText(
+    [
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.title,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const matches = new Set<ArtworkTypeFilter>()
+
+  if (/(painting|oil on canvas|oil on panel|oil on board|oil on wood|oil on linen|acrylic|tempera|panel painting|altarpiece|icon|fresco|mural|encaustic)/.test(text)) {
+    matches.add("painting")
+  }
+
+  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil|sketch)/.test(text)) {
+    matches.add("drawing")
+  }
+
+  if (/(print|engraving|etching|lithograph|woodcut|screenprint|mezzotint|aquatint|drypoint)/.test(text)) {
+    matches.add("print")
+  }
+
+  if (/(photograph|photography|albumen|gelatin silver|chromogenic|daguerreotype|tintype|photo)/.test(text)) {
+    matches.add("photograph")
+  }
+
+  if (/(sculpture|statue|statuette|bust|bronze|carving|relief|figurine)/.test(text)) {
+    matches.add("sculpture")
+  }
+
+  if (/(textile|tapestry|embroidery|woven|fabric|costume|garment|silk)/.test(text)) {
+    matches.add("textile")
+  }
+
+  if (/(ceramic|ceramics|porcelain|earthenware|stoneware|pottery|vase|terracotta|maiolica)/.test(text)) {
+    matches.add("ceramic")
+  }
+
+  if (
+    /(jewelry|jewellery|metalwork|glass|decorative art|object|vessel|silver|gold|lacquer|container|tray|tankard|chalice|goblet|flask|urn|casket|coin|medal|enamel|ivory|amber|jade|cup|bowl|plate|dish|pitcher|ewer|salver|candelabrum|candlestick|tureen|teapot|kettle|hilt|sword|dagger|armor|armour|helmet|pendant|brooch|bracelet|necklace|medallion|clock|mirror|seal|netsuke|inro|snuff)/.test(
+      text,
+    )
+  ) {
+    matches.add("decorative")
+  }
+
+  if (/(furniture|chair|cabinet|table|desk|wardrobe|cupboard|sofa|settee|bench|stool|chest|armchair|bed)/.test(text)) {
+    matches.add("furniture")
+  }
+
+  if (/(manuscript|book|leaf|poster|broadside|print poster|banner|page|codex|folio|illuminated)/.test(text)) {
+    matches.add("manuscript")
+  }
+
+  if (matches.size === 0 && /photograph/.test(normalizeSearchText(artwork.source))) {
+    matches.add("photograph")
+  }
+
+  if (matches.size === 0 && /sculpture/.test(normalizeSearchText(artwork.classificationTitle))) {
+    matches.add("sculpture")
+  }
+
+  return Array.from(matches)
+}
+
+function filterArtworksByType(
+  artworks: MuseumArtwork[],
+  artworkTypeFilters: ArtworkTypeFilter[],
+): MuseumArtwork[] {
+  if (artworkTypeFilters.length === 0 || areAllArtworkTypeFiltersSelected(artworkTypeFilters)) {
+    return artworks
+  }
+
+  const allowedTypes = new Set(artworkTypeFilters)
+
+  return artworks.filter((artwork) => {
+    const matchedTypes = getArtworkTypeFilterMatches(artwork)
+
+    if (matchedTypes.length === 0) {
+      return true
     }
 
-    if (normalizeSearchText(artwork.title).includes(normalizedKeyword)) {
-      return score + 8
-    }
+    return matchedTypes.some((typeId) => allowedTypes.has(typeId))
+  })
+}
 
-    if (normalizeSearchText(artwork.subjectTitles.join(" ")).includes(normalizedKeyword)) {
-      return score + 7
-    }
+function getUniqueIntentTerms(terms: string[]): string[] {
+  return Array.from(
+    new Set(
+      terms
+        .map((term) => normalizeSearchText(term))
+        .filter((term) => term.length >= 3),
+    ),
+  )
+}
 
-    if (normalizeSearchText(artwork.shortDescription || "").includes(normalizedKeyword)) {
-      return score + 5
-    }
+function getTermMatchScore(artwork: MuseumArtwork, term: string): number {
+  const normalizedTerm = normalizeSearchText(term)
 
-    if (normalizeSearchText(artwork.description || "").includes(normalizedKeyword)) {
-      return score + 4
-    }
+  if (!normalizedTerm || normalizedTerm.length < 3) {
+    return 0
+  }
 
-    if (
-      normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay].join(" ")).includes(
-        normalizedKeyword,
-      )
-    ) {
-      return score + 2
-    }
+  if (normalizeSearchText(artwork.title).includes(normalizedTerm)) {
+    return 8
+  }
 
-    return score
-  }, 0)
+  if (normalizeSearchText(artwork.subjectTitles.join(" ")).includes(normalizedTerm)) {
+    return 7
+  }
+
+  if (normalizeSearchText(artwork.shortDescription || "").includes(normalizedTerm)) {
+    return 5
+  }
+
+  if (normalizeSearchText(artwork.description || "").includes(normalizedTerm)) {
+    return 4
+  }
+
+  if (
+    normalizeSearchText([artwork.classificationTitle, artwork.mediumDisplay].join(" ")).includes(
+      normalizedTerm,
+    )
+  ) {
+    return 2
+  }
+
+  return 0
+}
+
+function countMatchedTerms(artwork: MuseumArtwork, terms: string[]): number {
+  return getUniqueIntentTerms(terms).filter((term) => getTermMatchScore(artwork, term) > 0).length
+}
+
+function getWeightedMatchScore(artwork: MuseumArtwork, terms: string[], multiplier: number): number {
+  return getUniqueIntentTerms(terms).reduce(
+    (score, term) => score + getTermMatchScore(artwork, term) * multiplier,
+    0,
+  )
+}
+
+function getKeywordRelevanceScore(artwork: MuseumArtwork, searchIntent: ArtworkSearchIntent): number {
+  return getWeightedMatchScore(artwork, searchIntent.searchTerms, 1)
+}
+
+function getArtworkIntentMatchSummary(
+  artwork: MuseumArtwork,
+  searchIntent: ArtworkSearchIntent,
+): ArtworkIntentMatchSummary {
+  return {
+    primaryMatches: countMatchedTerms(artwork, searchIntent.primaryTerms),
+    secondaryMatches: countMatchedTerms(artwork, searchIntent.secondaryTerms),
+    sceneMatches: countMatchedTerms(artwork, searchIntent.sceneTerms),
+    moodMatches: countMatchedTerms(artwork, searchIntent.moodTerms),
+    weightedScore:
+      getWeightedMatchScore(artwork, searchIntent.primaryTerms, 2.4) +
+      getWeightedMatchScore(artwork, searchIntent.secondaryTerms, 1.5) +
+      getWeightedMatchScore(artwork, searchIntent.sceneTerms, 1.15) +
+      getWeightedMatchScore(artwork, searchIntent.moodTerms, 0.85),
+  }
 }
 
 function getStrongKeywordRelevanceThreshold(strictness: ArtworkSelectionStrictness): number {
@@ -525,8 +667,55 @@ function getTopCandidateScoreThreshold(strictness: ArtworkSelectionStrictness): 
   return 8
 }
 
-function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): number {
+function hasStillLifeLean(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const stillLifeTerms = ["still life", "fruit", "bread", "table", "meal", "vase", "flowers", "banquet"]
+
+  return stillLifeTerms.some((term) => text.includes(term))
+}
+
+function hasInteriorFurnitureLean(artwork: MuseumArtwork): boolean {
+  const text = normalizeSearchText(
+    [
+      artwork.title,
+      artwork.classificationTitle,
+      artwork.mediumDisplay,
+      artwork.shortDescription,
+      artwork.description,
+      artwork.subjectTitles.join(" "),
+    ].join(" "),
+  )
+  const interiorTerms = ["interior", "room", "domestic", "cabinet", "cupboard", "chair", "furniture"]
+
+  return interiorTerms.some((term) => text.includes(term))
+}
+
+function intentRequestsStillLife(searchIntent: ArtworkSearchIntent): boolean {
+  const text = normalizeSearchText(searchIntent.searchTerms.join(" "))
+  return /(food|meal|table|fruit|bread|vase|flower|flowers|still life|banquet)/.test(text)
+}
+
+function intentRequestsInterior(searchIntent: ArtworkSearchIntent): boolean {
+  const text = normalizeSearchText(searchIntent.searchTerms.join(" "))
+  return /(home|room|interior|domestic|bedroom|chair|furniture)/.test(text)
+}
+
+function artworkQualityScore(
+  artwork: MuseumArtwork,
+  searchIntent: ArtworkSearchIntent = EMPTY_ARTWORK_SEARCH_INTENT,
+  strictness: ArtworkSelectionStrictness = "standard",
+): number {
   let score = 0
+  const intentMatch = getArtworkIntentMatchSummary(artwork, searchIntent)
 
   if (!hasWeakTitle(artwork.title)) {
     score += 3
@@ -564,14 +753,31 @@ function artworkQualityScore(artwork: MuseumArtwork, searchKeywords: string[]): 
     score -= 8
   }
 
-  score += getKeywordRelevanceScore(artwork, searchKeywords)
+  if (hasStillLifeLean(artwork) && !intentRequestsStillLife(searchIntent)) {
+    score -= strictness === "soft" ? 3 : 8
+  }
+
+  if (
+    hasInteriorFurnitureLean(artwork) &&
+    searchIntent.primaryTerms.length > 0 &&
+    !intentRequestsInterior(searchIntent) &&
+    intentMatch.primaryMatches === 0
+  ) {
+    score -= strictness === "literal" ? 12 : strictness === "precise" ? 9 : 6
+  }
+
+  score += intentMatch.weightedScore
+
+  if (searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
+    score -= strictness === "literal" ? 40 : strictness === "precise" ? 20 : strictness === "standard" ? 10 : 4
+  }
 
   return score
 }
 
 function selectArtworkFromTopCandidates(
   candidates: MuseumArtwork[],
-  searchKeywords: string[],
+  searchIntent: ArtworkSearchIntent,
   recentArtworkSignatures: string[],
   strictness: ArtworkSelectionStrictness,
 ): MuseumArtwork | null {
@@ -590,21 +796,33 @@ function selectArtworkFromTopCandidates(
     .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, searchKeywords),
+      score: artworkQualityScore(artwork, searchIntent, strictness),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const fallbackRanked = uniqueCandidates
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, searchKeywords),
+      score: artworkQualityScore(artwork, searchIntent, strictness),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const relevanceThreshold = getStrongKeywordRelevanceThreshold(strictness)
   const scoreThreshold = getTopCandidateScoreThreshold(strictness)
   const stronglyRelevantCandidates = ranked.filter(
-    (item) => getKeywordRelevanceScore(item.artwork, searchKeywords) >= relevanceThreshold,
+    (item) => {
+      const intentMatch = getArtworkIntentMatchSummary(item.artwork, searchIntent)
+
+      if (strictness === "literal" && searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
+        return false
+      }
+
+      if (strictness === "precise" && searchIntent.primaryTerms.length > 0) {
+        return intentMatch.primaryMatches > 0 || intentMatch.secondaryMatches > 0
+      }
+
+      return getKeywordRelevanceScore(item.artwork, searchIntent) >= relevanceThreshold
+    },
   )
   const topCandidates = stronglyRelevantCandidates
     .filter((item) => item.score >= scoreThreshold)
@@ -637,14 +855,14 @@ export function selectRandomDisplayArtworks(
     .filter((artwork) => !hasRecentSignature(artwork, recentArtworkSignatures))
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, []),
+      score: artworkQualityScore(artwork),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const fallbackRanked = uniqueCandidates
     .map((artwork) => ({
       artwork,
-      score: artworkQualityScore(artwork, []),
+      score: artworkQualityScore(artwork),
       random: Math.random(),
     }))
     .sort((left, right) => right.score - left.score || right.random - left.random)
@@ -1263,16 +1481,23 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
   },
 ]
 
+const SAFETY_NET_KEYWORDS: string[] = ["painting", "scene"]
+
 export async function fetchArtworkFromMuseums(
-  searchKeywords: string[],
+  searchIntent: ArtworkSearchIntent,
   searchContext: MuseumSearchContext,
   strictness: ArtworkSelectionStrictness = "standard",
+  artworkTypeFilters: ArtworkTypeFilter[] = [],
 ): Promise<MuseumArtwork> {
   const fallbackKeywords =
-    strictness === "literal" || strictness === "precise"
-      ? []
-      : ["still life", "landscape", "interior", "nature", "portrait"]
-  const keywords = Array.from(new Set([...searchKeywords, ...fallbackKeywords]))
+    strictness === "soft"
+      ? searchIntent.moodTerms.slice(0, 2)
+      : []
+  const dedupedKeywords = Array.from(new Set([...searchIntent.searchTerms, ...fallbackKeywords])).slice(
+    0,
+    8,
+  )
+  const keywords = dedupedKeywords.length > 0 ? dedupedKeywords : SAFETY_NET_KEYWORDS
   const providerResults = await Promise.all(
     keywords.slice(0, 6).flatMap((keyword) =>
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
@@ -1285,10 +1510,10 @@ export async function fetchArtworkFromMuseums(
       }),
     ),
   )
-  const pooledArtwork = providerResults.flat()
+  const pooledArtwork = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
   const pooledSelection = selectArtworkFromTopCandidates(
     pooledArtwork,
-    searchKeywords,
+    searchIntent,
     searchContext.recentArtworkSignatures,
     strictness,
   )
@@ -1308,10 +1533,10 @@ export async function fetchArtworkFromMuseums(
         }
       }),
     )
-    const candidates = providerResults.flat()
+    const candidates = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
     const bestArtwork = selectArtworkFromTopCandidates(
       candidates,
-      searchKeywords,
+      searchIntent,
       searchContext.recentArtworkSignatures,
       strictness,
     )

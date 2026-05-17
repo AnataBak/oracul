@@ -1,8 +1,17 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Eye, EyeOff, HelpCircle, Send, Settings2, X } from "lucide-react"
+import { Check, Eye, EyeOff, Filter, HelpCircle, Send, Settings2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   Popover,
   PopoverContent,
@@ -13,6 +22,11 @@ import {
   getArtworkSelectionStrictnessOption,
   type ArtworkSelectionStrictness,
 } from "@/lib/artwork-selection-strictness"
+import {
+  areAllArtworkTypeFiltersSelected,
+  ARTWORK_TYPE_FILTER_OPTIONS,
+  type ArtworkTypeFilter,
+} from "@/lib/artwork-type-filters"
 import { ORACLE_VOICE_OPTIONS, type OracleVoice } from "@/lib/oracle-voices"
 import { DailyArtOrb } from "./daily-art-orb"
 
@@ -21,10 +35,12 @@ interface InputStateProps {
   selectedVoice: OracleVoice
   visualAnalysisEnabled: boolean
   selectionStrictness: ArtworkSelectionStrictness
+  artworkTypeFilters: ArtworkTypeFilter[]
   onChange: (value: string) => void
   onVoiceChange: (value: OracleVoice) => void
   onVisualAnalysisChange: (value: boolean) => void
   onSelectionStrictnessChange: (value: ArtworkSelectionStrictness) => void
+  onArtworkTypeFiltersChange: (value: ArtworkTypeFilter[]) => void
   onSubmit: () => void
 }
 
@@ -133,17 +149,21 @@ export function InputState({
   selectedVoice,
   visualAnalysisEnabled,
   selectionStrictness,
+  artworkTypeFilters,
   onChange,
   onVoiceChange,
   onVisualAnalysisChange,
   onSelectionStrictnessChange,
+  onArtworkTypeFiltersChange,
   onSubmit,
 }: InputStateProps) {
   const selectedVoiceOption =
     ORACLE_VOICE_OPTIONS.find((voice) => voice.id === selectedVoice) || ORACLE_VOICE_OPTIONS[0]
   const selectedStrictnessOption = getArtworkSelectionStrictnessOption(selectionStrictness)
   const [openSettingsHelpId, setOpenSettingsHelpId] = useState<string | null>(null)
+  const [openFilterHelpId, setOpenFilterHelpId] = useState<string | null>(null)
   const [isEyeHelpOpen, setIsEyeHelpOpen] = useState(false)
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const eyeHelpText = visualAnalysisEnabled
     ? "Глаз открыт: нейросеть визуально оценивает выбранную картину и сверяет изображение с музейным описанием."
     : "Глаз закрыт: поиск и ответ строятся только по музейному описанию, без визуальной оценки изображения."
@@ -153,6 +173,26 @@ export function InputState({
       e.preventDefault()
       onSubmit()
     }
+  }
+
+  const allArtworkTypesSelected = areAllArtworkTypeFiltersSelected(artworkTypeFilters)
+  const selectedArtworkTypeCount = artworkTypeFilters.length
+  const filtersButtonLabel = allArtworkTypesSelected
+    ? "Все типы"
+    : `${selectedArtworkTypeCount} из ${ARTWORK_TYPE_FILTER_OPTIONS.length}`
+
+  const toggleArtworkTypeFilter = (filterId: ArtworkTypeFilter) => {
+    const isSelected = artworkTypeFilters.includes(filterId)
+
+    if (isSelected && artworkTypeFilters.length === 1) {
+      return
+    }
+
+    onArtworkTypeFiltersChange(
+      isSelected
+        ? artworkTypeFilters.filter((item) => item !== filterId)
+        : [...artworkTypeFilters, filterId],
+    )
   }
 
   return (
@@ -187,9 +227,102 @@ export function InputState({
               className="w-full min-h-[122px] resize-none bg-transparent p-1 pb-5 pr-28 text-lg leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:min-h-[220px] md:text-xl"
               autoFocus
             />
-            <span className="pointer-events-none absolute right-0 top-0 rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
-              Ctrl + Enter
-            </span>
+            <div className="absolute right-0 top-0 flex items-start gap-2">
+              <Dialog
+                open={isFilterDialogOpen}
+                onOpenChange={(open) => {
+                  setIsFilterDialogOpen(open)
+
+                  if (!open) {
+                    setOpenFilterHelpId(null)
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 gap-2 rounded-full border-border/60 bg-background/55 px-3 text-[11px] text-muted-foreground backdrop-blur-sm hover:bg-background/75 hover:text-foreground"
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Фильтры</span>
+                    <span>{filtersButtonLabel}</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent
+                  showCloseButton={false}
+                  className="w-[calc(100vw-1.5rem)] max-w-[26rem] gap-0 rounded-2xl border-border p-0 sm:max-w-[28rem]"
+                >
+                  <DialogHeader className="border-b border-border px-4 py-4 text-left">
+                    <DialogTitle className="text-base">Типы работ</DialogTitle>
+                    <DialogDescription className="mt-1 text-sm text-muted-foreground">
+                      Оставьте галочки только на тех типах музейных работ, которые хотите видеть в подборе.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="max-h-[min(70vh,32rem)] space-y-2 overflow-y-auto px-3 py-3">
+                    {ARTWORK_TYPE_FILTER_OPTIONS.map((option) => {
+                      const isSelected = artworkTypeFilters.includes(option.id)
+
+                      return (
+                        <div key={option.id} className="space-y-2">
+                          <div
+                            className={`flex items-center gap-2 rounded-xl border p-1 transition-colors ${
+                              isSelected
+                                ? "border-primary/30 bg-primary/10"
+                                : "border-border bg-background/40 hover:bg-primary/5"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleArtworkTypeFilter(option.id)}
+                              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left"
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                className="pointer-events-none"
+                              />
+                              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+                                {option.label}
+                              </span>
+                            </button>
+                            <HelpButton
+                              label={`Что значит ${option.label}`}
+                              onClick={() =>
+                                setOpenFilterHelpId(openFilterHelpId === option.id ? null : option.id)
+                              }
+                            />
+                          </div>
+                          {openFilterHelpId === option.id ? (
+                            <HelpPanel
+                              text={option.description}
+                              onClose={() => setOpenFilterHelpId(null)}
+                            />
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                    <span>
+                      {allArtworkTypesSelected
+                        ? "Сейчас поиск идёт по всем типам работ."
+                        : `Сейчас включено ${selectedArtworkTypeCount} типов работ.`}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-full px-2 py-1 text-foreground transition-colors hover:bg-primary/5"
+                      onClick={() =>
+                        onArtworkTypeFiltersChange(ARTWORK_TYPE_FILTER_OPTIONS.map((option) => option.id))
+                      }
+                    >
+                      Выбрать всё
+                    </button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           <div className="pointer-events-none relative my-4 h-3">
