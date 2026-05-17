@@ -531,10 +531,6 @@ function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[
     matches.add("sculpture")
   }
 
-  if (matches.size === 0) {
-    matches.add("decorative")
-  }
-
   return Array.from(matches)
 }
 
@@ -548,9 +544,15 @@ function filterArtworksByType(
 
   const allowedTypes = new Set(artworkTypeFilters)
 
-  return artworks.filter((artwork) =>
-    getArtworkTypeFilterMatches(artwork).some((typeId) => allowedTypes.has(typeId)),
-  )
+  return artworks.filter((artwork) => {
+    const matchedTypes = getArtworkTypeFilterMatches(artwork)
+
+    if (matchedTypes.length === 0) {
+      return true
+    }
+
+    return matchedTypes.some((typeId) => allowedTypes.has(typeId))
+  })
 }
 
 function getUniqueIntentTerms(terms: string[]): string[] {
@@ -1475,6 +1477,8 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
   },
 ]
 
+const SAFETY_NET_KEYWORDS: string[] = ["painting", "scene"]
+
 export async function fetchArtworkFromMuseums(
   searchIntent: ArtworkSearchIntent,
   searchContext: MuseumSearchContext,
@@ -1485,7 +1489,11 @@ export async function fetchArtworkFromMuseums(
     strictness === "soft"
       ? searchIntent.moodTerms.slice(0, 2)
       : []
-  const keywords = Array.from(new Set([...searchIntent.searchTerms, ...fallbackKeywords])).slice(0, 8)
+  const dedupedKeywords = Array.from(new Set([...searchIntent.searchTerms, ...fallbackKeywords])).slice(
+    0,
+    8,
+  )
+  const keywords = dedupedKeywords.length > 0 ? dedupedKeywords : SAFETY_NET_KEYWORDS
   const providerResults = await Promise.all(
     keywords.slice(0, 6).flatMap((keyword) =>
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
