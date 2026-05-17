@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import {
-  fetchArtworkFromMuseums,
+  fetchArtworkCandidatesFromMuseums,
   getArtworkSignature,
   type MuseumArtwork,
 } from "./museum-providers"
@@ -618,6 +618,251 @@ Rules:
   }
 }
 
+const ARTWORK_CANDIDATE_LIMIT = 15
+const VISUAL_VIBE_CHECK_LIMIT = 3
+const RERANK_DESCRIPTION_CHAR_LIMIT = 220
+
+function truncateForRerank(value: string | null | undefined, limit: number): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return null
+  }
+
+  if (trimmed.length <= limit) {
+    return trimmed
+  }
+
+  return `${trimmed.slice(0, Math.max(0, limit - 1)).trimEnd()}…`
+}
+
+function buildRerankCandidateBlock(artwork: MuseumArtwork, candidateId: number): string {
+  const headline = `[${candidateId}] "${artwork.title}" — ${artwork.artist} (${
+    artwork.dateDisplay || artwork.year || "дата не указана"
+  })`
+  const metadata = `Тип: ${artwork.classificationTitle || "не указан"}. Материал: ${
+    artwork.mediumDisplay || "не указан"
+  }.`
+  const subjects =
+    artwork.subjectTitles.length > 0
+      ? `Темы: ${artwork.subjectTitles.slice(0, 6).join(", ")}.`
+      : null
+  const shortDescription = truncateForRerank(artwork.shortDescription, RERANK_DESCRIPTION_CHAR_LIMIT)
+  const description =
+    shortDescription === null
+      ? truncateForRerank(artwork.description, RERANK_DESCRIPTION_CHAR_LIMIT)
+      : null
+  const lines = [headline, metadata, subjects, shortDescription, description].filter(
+    (line): line is string => typeof line === "string" && line.length > 0,
+  )
+
+  return lines.join("\n")
+}
+
+function parseRerankOrder(raw: string, candidatesCount: number): number[] | null {
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim()
+
+  try {
+    const parsed = JSON.parse(cleaned) as { order?: unknown }
+
+    if (!Array.isArray(parsed.order)) {
+      return null
+    }
+
+    const order: number[] = []
+    const seen = new Set<number>()
+
+    for (const entry of parsed.order) {
+      const value =
+        typeof entry === "number"
+          ? entry
+          : typeof entry === "string"
+            ? Number.parseInt(entry, 10)
+            : Number.NaN
+
+      if (!Number.isInteger(value) || value < 1 || value > candidatesCount || seen.has(value)) {
+        continue
+      }
+
+      seen.add(value)
+      order.push(value)
+    }
+
+    return order.length > 0 ? order : null
+  } catch {
+    return null
+  }
+}
+
+async function rerankCandidatesByVibe(
+  userText: string,
+  candidates: MuseumArtwork[],
+  modelChain?: readonly string[],
+): Promise<MuseumArtwork[]> {
+  if (candidates.length <= 1) {
+    return candidates
+  }
+
+  const candidateBlocks = candidates
+    .map((artwork, index) => buildRerankCandidateBlock(artwork, index + 1))
+    .join("\n\n")
+  const prompt = `Пользователь написал: "${userText}".
+
+Ниже список из ${candidates.length} работ из музейных коллекций (только текстовые описания, без изображений). Тебе нужно отсортировать их от лучшей к худшей по тому, насколько каждая передаёт настроение, атмосферу и общий вайб того, что пользователь хотел почувствовать.
+
+Сначала про себя определи, какое настроение и какой вайб у пользователя сейчас, опираясь только на его текст. Это может быть уют, тоска, лёгкость, тревога, мечтательность, торжественность, страх, спокойствие — любая эмоция. Не используй заранее заготовленные правила вроде "всегда избегать мрачного" или "всегда выбирать спокойное" — ориентируйся только на то, что написал сам пользователь.
+
+Затем оцени каждую работу. Важнее всего общее настроение и атмосфера: тональность, свет, эмоциональный окрас, тематика. Конкретные предметы не обязаны буквально совпадать с текстом пользователя — главное вайб. Если несколько работ передают нужный вайб одинаково хорошо, отдай предпочтение более качественной (понятное описание, известный автор, более выразительная композиция).
+
+Кандидаты:
+
+${candidateBlocks}
+
+Верни строго JSON без markdown и пояснений:
+{"order": [<id1>, <id2>, ..., <id${candidates.length}>]}
+
+Правила:
+- В order должны быть ВСЕ ${candidates.length} ID-кандидата от лучшего (первый) к худшему (последний).
+- Используй только указанные ID-числа в квадратных скобках.
+- Никаких других полей, никаких пояснений.`
+
+  try {
+    const { text } = await requestGeminiText(prompt, 0.3, undefined, modelChain)
+    const order = parseRerankOrder(text, candidates.length)
+
+    if (!order) {
+      return candidates
+    }
+
+    const reordered: MuseumArtwork[] = []
+    const seen = new Set<number>()
+
+    for (const candidateId of order) {
+      seen.add(candidateId)
+      reordered.push(candidates[candidateId - 1])
+    }
+
+    for (let index = 0; index < candidates.length; index += 1) {
+      if (!seen.has(index + 1)) {
+        reordered.push(candidates[index])
+      }
+    }
+
+    return reordered
+  } catch (error) {
+    console.warn("Vibe rerank failed, keeping score-based order.", error)
+    return candidates
+  }
+}
+
+function parseVisualVibeDecision(raw: string): boolean | null {
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim()
+
+  try {
+    const parsed = JSON.parse(cleaned) as { match?: unknown }
+
+    if (typeof parsed.match === "boolean") {
+      return parsed.match
+    }
+  } catch {
+    /* fall through to permissive parsing */
+  }
+
+  const normalized = cleaned.toLowerCase()
+
+  if (/"match"\s*:\s*true/.test(normalized)) {
+    return true
+  }
+
+  if (/"match"\s*:\s*false/.test(normalized)) {
+    return false
+  }
+
+  return null
+}
+
+async function verifyCandidateMatchesVibe(
+  userText: string,
+  artwork: MuseumArtwork,
+  modelChain?: readonly string[],
+): Promise<boolean | null> {
+  const image = await fetchArtworkImageForGemini(artwork)
+
+  if (!image) {
+    return null
+  }
+
+  const prompt = `Пользователь написал: "${userText}".
+
+Посмотри на это изображение работы из музейной коллекции и реши, передаёт ли оно настроение, атмосферу и вайб того, что хотел почувствовать пользователь.
+
+Сначала про себя определи, какое настроение и какой вайб ищет пользователь, опираясь только на его текст. Затем посмотри на изображение целиком: цвет, свет, тональность, общее эмоциональное впечатление.
+
+Не нужно, чтобы предметы на картине буквально совпадали с тем, что описал пользователь — важнее общая атмосфера. Не используй заранее заготовленные правила вроде "всегда избегать мрачного" или "всегда выбирать тёплое" — ориентируйся только на то, что написал сам пользователь.
+
+Верни строго JSON без markdown и пояснений:
+{"match": true}
+или
+{"match": false}
+
+Правила:
+- match=true, если работа адекватно передаёт нужный вайб.
+- match=false, если по атмосфере и эмоции она явно мимо.
+- Никаких других полей, никаких пояснений.`
+
+  try {
+    const { text } = await requestGeminiText(prompt, 0.3, image, modelChain)
+    return parseVisualVibeDecision(text)
+  } catch (error) {
+    console.warn("Visual vibe check failed.", error)
+    return null
+  }
+}
+
+async function selectArtworkByVibe(
+  userText: string,
+  candidates: MuseumArtwork[],
+  visualAnalysisEnabled: boolean,
+  modelChain?: readonly string[],
+): Promise<{
+  artwork: MuseumArtwork
+  rerankApplied: boolean
+  visualCheckPassed: boolean | null
+}> {
+  if (candidates.length === 0) {
+    throw new Error("No artwork with image was found in the museum APIs")
+  }
+
+  const rerankedCandidates = await rerankCandidatesByVibe(userText, candidates, modelChain)
+  const rerankApplied = rerankedCandidates.length > 1
+  const bestTextRerank = rerankedCandidates[0]
+
+  if (!visualAnalysisEnabled || rerankedCandidates.length === 0) {
+    return { artwork: bestTextRerank, rerankApplied, visualCheckPassed: null }
+  }
+
+  const maxChecks = Math.min(rerankedCandidates.length, VISUAL_VIBE_CHECK_LIMIT)
+
+  for (let index = 0; index < maxChecks; index += 1) {
+    const candidate = rerankedCandidates[index]
+    const decision = await verifyCandidateMatchesVibe(userText, candidate, modelChain)
+
+    if (decision === true) {
+      return { artwork: candidate, rerankApplied, visualCheckPassed: true }
+    }
+
+    if (decision === null) {
+      return { artwork: bestTextRerank, rerankApplied, visualCheckPassed: null }
+    }
+  }
+
+  return { artwork: bestTextRerank, rerankApplied, visualCheckPassed: false }
+}
+
 async function requestGeminiArtworkResponse(
   userText: string,
   artwork: MuseumArtwork,
@@ -716,7 +961,7 @@ export async function POST(request: Request) {
         : await buildSearchIntent(userText, geminiTextModelChain)
     const searchIntent = applySelectionStrictnessToIntent(baseSearchIntent, selectionStrictness)
     const searchKeywords = searchIntent.searchTerms
-    const artwork = await fetchArtworkFromMuseums(
+    const artworkCandidates = await fetchArtworkCandidatesFromMuseums(
       searchIntent,
       {
         recentArtworkIds: Array.from(new Set([...clientRecentArtworkIds, ...recentArtworkIds])),
@@ -726,7 +971,15 @@ export async function POST(request: Request) {
       },
       selectionStrictness,
       artworkTypeFilters,
+      ARTWORK_CANDIDATE_LIMIT,
     )
+    const vibeSelection = await selectArtworkByVibe(
+      userText,
+      artworkCandidates,
+      visualAnalysisEnabled,
+      geminiTextModelChain,
+    )
+    const artwork = vibeSelection.artwork
     rememberArtworkId(artwork.id)
     rememberArtworkSignature(artwork)
 

@@ -775,12 +775,17 @@ function artworkQualityScore(
   return score
 }
 
-function selectArtworkFromTopCandidates(
+function selectTopArtworkCandidates(
   candidates: MuseumArtwork[],
   searchIntent: ArtworkSearchIntent,
   recentArtworkSignatures: string[],
   strictness: ArtworkSelectionStrictness,
-): MuseumArtwork | null {
+  limit: number,
+): MuseumArtwork[] {
+  if (limit <= 0) {
+    return []
+  }
+
   const seenSignatures = new Set<string>()
   const uniqueCandidates = candidates.filter((artwork) => {
     const signature = getArtworkSignature(artwork)
@@ -809,30 +814,51 @@ function selectArtworkFromTopCandidates(
     .sort((left, right) => right.score - left.score || right.random - left.random)
   const relevanceThreshold = getStrongKeywordRelevanceThreshold(strictness)
   const scoreThreshold = getTopCandidateScoreThreshold(strictness)
-  const stronglyRelevantCandidates = ranked.filter(
-    (item) => {
-      const intentMatch = getArtworkIntentMatchSummary(item.artwork, searchIntent)
+  const stronglyRelevantCandidates = ranked.filter((item) => {
+    const intentMatch = getArtworkIntentMatchSummary(item.artwork, searchIntent)
 
-      if (strictness === "literal" && searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
-        return false
-      }
+    if (strictness === "literal" && searchIntent.primaryTerms.length > 0 && intentMatch.primaryMatches === 0) {
+      return false
+    }
 
-      if (strictness === "precise" && searchIntent.primaryTerms.length > 0) {
-        return intentMatch.primaryMatches > 0 || intentMatch.secondaryMatches > 0
-      }
+    if (strictness === "precise" && searchIntent.primaryTerms.length > 0) {
+      return intentMatch.primaryMatches > 0 || intentMatch.secondaryMatches > 0
+    }
 
-      return getKeywordRelevanceScore(item.artwork, searchIntent) >= relevanceThreshold
-    },
-  )
-  const topCandidates = stronglyRelevantCandidates
-    .filter((item) => item.score >= scoreThreshold)
-    .slice(0, 10)
+    return getKeywordRelevanceScore(item.artwork, searchIntent) >= relevanceThreshold
+  })
+  const topCandidates = stronglyRelevantCandidates.filter((item) => item.score >= scoreThreshold)
 
-  if (topCandidates.length > 0) {
-    return shuffleArray(topCandidates)[0]?.artwork || null
+  const ordered: MuseumArtwork[] = []
+  const seen = new Set<string>()
+  const appendOnce = (artwork: MuseumArtwork) => {
+    const signature = getArtworkSignature(artwork)
+
+    if (seen.has(signature)) {
+      return
+    }
+
+    seen.add(signature)
+    ordered.push(artwork)
   }
 
-  return stronglyRelevantCandidates[0]?.artwork || ranked[0]?.artwork || fallbackRanked[0]?.artwork || null
+  for (const item of topCandidates) {
+    appendOnce(item.artwork)
+  }
+
+  for (const item of stronglyRelevantCandidates) {
+    appendOnce(item.artwork)
+  }
+
+  for (const item of ranked) {
+    appendOnce(item.artwork)
+  }
+
+  for (const item of fallbackRanked) {
+    appendOnce(item.artwork)
+  }
+
+  return ordered.slice(0, limit)
 }
 
 export function selectRandomDisplayArtworks(
@@ -1483,12 +1509,13 @@ export const MUSEUM_PROVIDERS: MuseumProvider[] = [
 
 const SAFETY_NET_KEYWORDS: string[] = ["painting", "scene"]
 
-export async function fetchArtworkFromMuseums(
+export async function fetchArtworkCandidatesFromMuseums(
   searchIntent: ArtworkSearchIntent,
   searchContext: MuseumSearchContext,
   strictness: ArtworkSelectionStrictness = "standard",
   artworkTypeFilters: ArtworkTypeFilter[] = [],
-): Promise<MuseumArtwork> {
+  candidateLimit: number = 15,
+): Promise<MuseumArtwork[]> {
   const fallbackKeywords =
     strictness === "soft"
       ? searchIntent.moodTerms.slice(0, 2)
@@ -1511,19 +1538,20 @@ export async function fetchArtworkFromMuseums(
     ),
   )
   const pooledArtwork = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
-  const pooledSelection = selectArtworkFromTopCandidates(
+  const pooledTopCandidates = selectTopArtworkCandidates(
     pooledArtwork,
     searchIntent,
     searchContext.recentArtworkSignatures,
     strictness,
+    candidateLimit,
   )
 
-  if (pooledSelection) {
-    return pooledSelection
+  if (pooledTopCandidates.length > 0) {
+    return pooledTopCandidates
   }
 
   for (const keyword of shuffleArray(keywords)) {
-    const providerResults = await Promise.all(
+    const fallbackResults = await Promise.all(
       shuffleArray(MUSEUM_PROVIDERS).map(async (provider) => {
         try {
           return await provider.search(keyword, searchContext.recentArtworkIds)
@@ -1533,16 +1561,17 @@ export async function fetchArtworkFromMuseums(
         }
       }),
     )
-    const candidates = filterArtworksByType(providerResults.flat(), artworkTypeFilters)
-    const bestArtwork = selectArtworkFromTopCandidates(
+    const candidates = filterArtworksByType(fallbackResults.flat(), artworkTypeFilters)
+    const topCandidates = selectTopArtworkCandidates(
       candidates,
       searchIntent,
       searchContext.recentArtworkSignatures,
       strictness,
+      candidateLimit,
     )
 
-    if (bestArtwork) {
-      return bestArtwork
+    if (topCandidates.length > 0) {
+      return topCandidates
     }
   }
 
