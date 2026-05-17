@@ -322,10 +322,6 @@ export function InputState({
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <span className="pointer-events-none rounded-full border border-border/60 bg-background/45 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
-                Ctrl + Enter
-              </span>
             </div>
           </div>
 
