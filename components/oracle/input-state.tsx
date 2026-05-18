@@ -184,16 +184,14 @@ export function InputState({
   const toggleArtworkTypeFilter = (filterId: ArtworkTypeFilter) => {
     const isSelected = artworkTypeFilters.includes(filterId)
 
-    if (isSelected && artworkTypeFilters.length === 1) {
-      return
-    }
-
     onArtworkTypeFiltersChange(
       isSelected
         ? artworkTypeFilters.filter((item) => item !== filterId)
         : [...artworkTypeFilters, filterId],
     )
   }
+
+  const hasNoArtworkTypeFilters = selectedArtworkTypeCount === 0
 
   return (
     <div className="animate-fade-in -translate-y-6 flex w-full flex-col items-center gap-6 text-center md:translate-y-0 md:gap-7">
@@ -231,6 +229,10 @@ export function InputState({
               <Dialog
                 open={isFilterDialogOpen}
                 onOpenChange={(open) => {
+                  if (!open && hasNoArtworkTypeFilters) {
+                    return
+                  }
+
                   setIsFilterDialogOpen(open)
 
                   if (!open) {
@@ -304,21 +306,50 @@ export function InputState({
                     })}
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+                  {hasNoArtworkTypeFilters ? (
+                    <div className="border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                      Выберите хотя бы один тип работ.
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                     <span>
-                      {allArtworkTypesSelected
-                        ? "Сейчас поиск идёт по всем типам работ."
-                        : `Сейчас включено ${selectedArtworkTypeCount} типов работ.`}
+                      {hasNoArtworkTypeFilters
+                        ? "Ничего не выбрано."
+                        : allArtworkTypesSelected
+                          ? "Сейчас поиск идёт по всем типам работ."
+                          : `Сейчас включено ${selectedArtworkTypeCount} типов работ.`}
                     </span>
-                    <button
-                      type="button"
-                      className="rounded-full px-2 py-1 text-foreground transition-colors hover:bg-primary/5"
-                      onClick={() =>
-                        onArtworkTypeFiltersChange(ARTWORK_TYPE_FILTER_OPTIONS.map((option) => option.id))
-                      }
-                    >
-                      Выбрать всё
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full px-3 py-1.5 text-foreground transition-colors hover:bg-primary/5"
+                        onClick={() =>
+                          onArtworkTypeFiltersChange(
+                            ARTWORK_TYPE_FILTER_OPTIONS.map((option) => option.id),
+                          )
+                        }
+                      >
+                        Выбрать всё
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full px-3 py-1.5 text-foreground transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:text-muted-foreground/60 disabled:hover:bg-transparent"
+                        disabled={hasNoArtworkTypeFilters}
+                        onClick={() => onArtworkTypeFiltersChange([])}
+                      >
+                        Убрать всё
+                      </button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={hasNoArtworkTypeFilters}
+                        className="h-8 rounded-full px-4 text-xs"
+                        onClick={() => setIsFilterDialogOpen(false)}
+                      >
+                        ОК
+                      </Button>
+                    </div>
                   </div>
                 </DialogContent>
               </Dialog>
