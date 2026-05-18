@@ -481,13 +481,24 @@ function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[
       artwork.subjectTitles.join(" "),
     ].join(" "),
   )
+  const mediumText = normalizeSearchText(
+    [artwork.mediumDisplay, artwork.classificationTitle].join(" "),
+  )
   const matches = new Set<ArtworkTypeFilter>()
 
-  if (/(painting|oil on canvas|oil on panel|oil on board|oil on wood|oil on linen|acrylic|tempera|panel painting|altarpiece|icon|fresco|mural|encaustic)/.test(text)) {
+  if (
+    /(\boil\b|\bacrylic\b|\btempera\b|\bencaustic\b|\bgouache\b|\baltarpiece\b|\bicon\b|\bfresco\b|\bmural\b|panel painting)/.test(
+      mediumText,
+    )
+  ) {
     matches.add("painting")
   }
 
-  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil|sketch)/.test(text)) {
+  if (
+    /(\bdrawing\b|\bsketch\b|\bstudy\b|watercolor|watercolour|pastel|charcoal|chalk|\bink\b|pencil|graphite|crayon|\bpen\b|\bon paper\b)/.test(
+      mediumText,
+    )
+  ) {
     matches.add("drawing")
   }
 
