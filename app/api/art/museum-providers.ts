@@ -481,13 +481,29 @@ function getArtworkTypeFilterMatches(artwork: MuseumArtwork): ArtworkTypeFilter[
       artwork.subjectTitles.join(" "),
     ].join(" "),
   )
+  const mediumText = normalizeSearchText(artwork.mediumDisplay || "")
+  const classificationText = normalizeSearchText(artwork.classificationTitle || "")
   const matches = new Set<ArtworkTypeFilter>()
 
-  if (/(painting|oil on canvas|oil on panel|oil on board|oil on wood|oil on linen|acrylic|tempera|panel painting|altarpiece|icon|fresco|mural|encaustic)/.test(text)) {
+  const hasPaintingMedium =
+    /(\boil\b|\bacrylic[s]?\b|\btempera\b|\bencaustic\b|\bgouache\b|\bcasein\b|\bdistemper\b|\bfresco\b|\bmural\b|\bpigment[s]?\b|panel painting)/.test(
+      mediumText,
+    )
+  const hasDrawingMedium =
+    /(\bdrawing[s]?\b|\bsketch\b|\bstudy\b|watercolor|watercolour|pastel|charcoal|chalk|sanguine|silverpoint|metalpoint|\bink\b|pencil|graphite|crayon|cont[eé]|\bpen\b|\bwash\b|\bon paper\b|\bon parchment\b|\bon vellum\b|\bon cardboard\b)/.test(
+      mediumText,
+    )
+
+  const classificationSaysPainting =
+    /\b(painting[s]?|altarpiece|fresco|icon[s]?|triptych|diptych|panel painting)\b/.test(classificationText)
+  const classificationSaysDrawing =
+    /\b(drawing[s]?|sketch|study|etude|works on paper)\b/.test(classificationText)
+
+  if (hasPaintingMedium || (classificationSaysPainting && !hasDrawingMedium)) {
     matches.add("painting")
   }
 
-  if (/(drawing|watercolor|watercolour|gouache|pastel|charcoal|ink on paper|pencil|sketch)/.test(text)) {
+  if (hasDrawingMedium || classificationSaysDrawing) {
     matches.add("drawing")
   }
 
