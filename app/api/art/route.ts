@@ -454,10 +454,6 @@ async function fetchArtworkImageForGemini(artwork: MuseumArtwork): Promise<Gemin
     ? new URL(imageUrl, process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
     : new URL(imageUrl)
 
-  if (requestUrl.pathname.startsWith("/api/art-image/")) {
-    requestUrl.searchParams.set("size", "full")
-  }
-
   try {
     const response = await fetch(requestUrl, {
       cache: "no-store",
