@@ -552,7 +552,7 @@ function filterArtworksByType(
     const matchedTypes = getArtworkTypeFilterMatches(artwork)
 
     if (matchedTypes.length === 0) {
-      return true
+      return false
     }
 
     return matchedTypes.some((typeId) => allowedTypes.has(typeId))
