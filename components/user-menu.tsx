@@ -16,21 +16,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createSupabaseBrowserClient } from "@/lib/supabase/client"
 
-function describeUser(user: User): string {
-  if (user.email) {
-    return user.email
-  }
-
-  if (user.is_anonymous) {
-    return "Гость"
-  }
-
+function describeUser(user: User, displayName: string | null): string {
+  if (displayName) return displayName
+  if (user.email) return user.email
+  if (user.is_anonymous) return "Гость"
   return "Пользователь"
 }
 
 export function UserMenu() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -43,14 +39,43 @@ export function UserMenu() {
       return
     }
 
-    void supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null)
-      setIsReady(true)
-    })
+    const loadProfile = async (current: User | null) => {
+      if (!current || current.is_anonymous) {
+        setDisplayName(null)
+        return
+      }
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", current.id)
+          .maybeSingle()
+        setDisplayName(data?.display_name ?? null)
+      } catch {
+        // Network/RLS hiccup — keep email fallback rather than block UI.
+      }
+    }
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        const current = data.user ?? null
+        setUser(current)
+        setIsReady(true)
+        void loadProfile(current)
+      })
+      .catch(() => {
+        setIsReady(true)
+      })
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const current = session?.user ?? null
+        setUser(current)
+        setIsReady(true)
+        void loadProfile(current)
+      },
+    )
 
     return () => {
       listener.subscription.unsubscribe()
@@ -61,7 +86,7 @@ export function UserMenu() {
     return (
       <div
         aria-hidden="true"
-        className="h-9 w-20 animate-pulse rounded-md bg-card/40"
+        className="h-9 w-20 animate-pulse rounded-md border border-border bg-card/80"
       />
     )
   }
@@ -82,6 +107,8 @@ export function UserMenu() {
     )
   }
 
+  const label = describeUser(user, displayName)
+
   const handleSignOut = async () => {
     const supabase = createSupabaseBrowserClient()
 
@@ -96,10 +123,11 @@ export function UserMenu() {
           variant="outline"
           size="sm"
           className="bg-card/80 backdrop-blur-sm border-border hover:bg-card hover:border-primary/30 transition-all duration-300 gap-2"
+          data-testid="user-menu-trigger"
         >
           <UserIcon className="h-4 w-4" />
           <span className="hidden sm:inline max-w-[160px] truncate">
-            {describeUser(user)}
+            {label}
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -107,7 +135,7 @@ export function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <p className="text-xs text-muted-foreground">Вы вошли как</p>
           <p className="truncate text-sm font-medium text-foreground">
-            {describeUser(user)}
+            {label}
           </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -115,7 +143,10 @@ export function UserMenu() {
           <Link href="/account">Личный кабинет</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={handleSignOut} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onSelect={handleSignOut}
+          className="text-destructive focus:text-destructive"
+        >
           <LogOut className="h-4 w-4" />
           Выйти
         </DropdownMenuItem>

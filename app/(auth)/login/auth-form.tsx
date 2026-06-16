@@ -1,11 +1,17 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { useActionState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordInput } from "@/components/ui/password-input"
+import {
+  PASSWORD_MIN_LENGTH,
+  validatePasswordConfirmation,
+} from "@/lib/auth/validation"
 import type { AuthFormState } from "../auth-form-state"
 
 type AuthAction = (
@@ -40,11 +46,24 @@ const COPY = {
   },
 } as const
 
-function SubmitButton({ idle, busy }: { idle: string; busy: string }) {
+function SubmitButton({
+  idle,
+  busy,
+  disabled,
+}: {
+  idle: string
+  busy: string
+  disabled?: boolean
+}) {
   const { pending } = useFormStatus()
 
   return (
-    <Button type="submit" size="lg" className="w-full" disabled={pending}>
+    <Button
+      type="submit"
+      size="lg"
+      className="w-full"
+      disabled={pending || disabled}
+    >
       {pending ? busy : idle}
     </Button>
   )
@@ -54,7 +73,22 @@ export function AuthForm({ mode, action }: AuthFormProps) {
   const [state, formAction] = useActionState<AuthFormState, FormData>(action, {
     error: null,
   })
+  const [password, setPassword] = useState("")
+  const [confirmation, setConfirmation] = useState("")
+  const [confirmationTouched, setConfirmationTouched] = useState(false)
+
   const copy = COPY[mode]
+  const isRegister = mode === "register"
+
+  const confirmationError =
+    isRegister && confirmationTouched
+      ? validatePasswordConfirmation(password, confirmation)
+      : null
+  const submitDisabled =
+    isRegister &&
+    (password.length < PASSWORD_MIN_LENGTH ||
+      confirmation.length === 0 ||
+      password !== confirmation)
 
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card/80 p-6 backdrop-blur-sm md:p-8">
@@ -65,7 +99,7 @@ export function AuthForm({ mode, action }: AuthFormProps) {
         <p className="text-sm text-muted-foreground">{copy.subtitle}</p>
       </div>
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} className="space-y-4" noValidate>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -81,16 +115,47 @@ export function AuthForm({ mode, action }: AuthFormProps) {
 
         <div className="space-y-2">
           <Label htmlFor="password">Пароль</Label>
-          <Input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            autoComplete={isRegister ? "new-password" : "current-password"}
             required
-            minLength={6}
-            placeholder="не короче 6 символов"
+            minLength={PASSWORD_MIN_LENGTH}
+            placeholder={`не короче ${PASSWORD_MIN_LENGTH} символов`}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
           />
         </div>
+
+        {isRegister ? (
+          <div className="space-y-2">
+            <Label htmlFor="password_confirmation">Повторите пароль</Label>
+            <PasswordInput
+              id="password_confirmation"
+              name="password_confirmation"
+              autoComplete="new-password"
+              required
+              minLength={PASSWORD_MIN_LENGTH}
+              placeholder="введите тот же пароль ещё раз"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              onBlur={() => setConfirmationTouched(true)}
+              aria-invalid={confirmationError ? true : undefined}
+              aria-describedby={
+                confirmationError ? "password_confirmation_error" : undefined
+              }
+            />
+            {confirmationError ? (
+              <p
+                id="password_confirmation_error"
+                role="alert"
+                className="text-sm text-destructive"
+              >
+                {confirmationError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {state.error ? (
           <p
@@ -101,7 +166,11 @@ export function AuthForm({ mode, action }: AuthFormProps) {
           </p>
         ) : null}
 
-        <SubmitButton idle={copy.submit} busy={copy.submitting} />
+        <SubmitButton
+          idle={copy.submit}
+          busy={copy.submitting}
+          disabled={submitDisabled}
+        />
       </form>
 
       <p className="text-center text-sm text-muted-foreground">

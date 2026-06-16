@@ -3,6 +3,11 @@
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import {
+  validateEmail,
+  validatePassword,
+  validatePasswordConfirmation,
+} from "@/lib/auth/validation"
 import type { AuthFormState } from "../auth-form-state"
 
 export async function signUpAction(
@@ -11,14 +16,16 @@ export async function signUpAction(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "").trim()
   const password = String(formData.get("password") ?? "")
+  const confirmation = String(formData.get("password_confirmation") ?? "")
 
-  if (!email || !password) {
-    return { error: "Введите email и пароль." }
-  }
+  const emailError = validateEmail(email)
+  if (emailError) return { error: emailError }
 
-  if (password.length < 6) {
-    return { error: "Пароль должен быть не короче 6 символов." }
-  }
+  const passwordError = validatePassword(password)
+  if (passwordError) return { error: passwordError }
+
+  const confirmationError = validatePasswordConfirmation(password, confirmation)
+  if (confirmationError) return { error: confirmationError }
 
   const supabase = await createSupabaseServerClient()
   const { error } = await supabase.auth.signUp({ email, password })
@@ -28,5 +35,5 @@ export async function signUpAction(
   }
 
   revalidatePath("/", "layout")
-  redirect("/account")
+  redirect("/account?welcome=1")
 }

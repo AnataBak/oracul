@@ -4,12 +4,17 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { signOutAction } from "./actions"
+import { ProfileForm } from "./profile-form"
 
 export const metadata: Metadata = {
   title: "Личный кабинет — Арт-Оракул",
 }
 
-export default async function AccountPage() {
+type AccountPageProps = {
+  searchParams: Promise<{ welcome?: string }>
+}
+
+export default async function AccountPage({ searchParams }: AccountPageProps) {
   const supabase = await createSupabaseServerClient()
   const {
     data: { user },
@@ -18,6 +23,17 @@ export default async function AccountPage() {
   if (!user || user.is_anonymous) {
     redirect("/login")
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const displayName = profile?.display_name ?? ""
+  const greeting = displayName || user.email || "друг"
+  const { welcome } = await searchParams
+  const isOnboarding = welcome === "1" && !displayName
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -37,24 +53,54 @@ export default async function AccountPage() {
             Личный кабинет
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-            Добро пожаловать
+            {isOnboarding ? "Добро пожаловать!" : `Привет, ${greeting}`}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Вы вошли как{" "}
-            <span className="font-medium text-foreground">{user.email}</span>
-          </p>
+          {user.email ? (
+            <p className="text-sm text-muted-foreground">
+              Аккаунт:{" "}
+              <span className="font-medium text-foreground">{user.email}</span>
+            </p>
+          ) : null}
         </header>
 
+        <section
+          aria-labelledby="profile-heading"
+          className="rounded-xl border border-border bg-card/80 p-6 backdrop-blur-sm md:p-8"
+        >
+          <h2
+            id="profile-heading"
+            className="text-lg font-semibold text-foreground"
+          >
+            {isOnboarding ? "Как тебя называть?" : "Профиль"}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isOnboarding
+              ? "Имя будет видно в шапке вместо email. Можно поменять позже на этой же странице."
+              : "Меняйте имя в любой момент — оно отображается в правом верхнем углу сайта."}
+          </p>
+          <div className="mt-4">
+            <ProfileForm
+              initialDisplayName={displayName}
+              showOnboardingHint={isOnboarding}
+            />
+          </div>
+        </section>
+
         <section className="rounded-xl border border-border bg-card/80 p-6 backdrop-blur-sm md:p-8">
-          <h2 className="text-lg font-semibold text-foreground">Скоро здесь будет</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            Скоро здесь будет
+          </h2>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li>— вкладка «Избранное»: лайкнутые расклады с картиной и словами оракула;</li>
+            <li>
+              — вкладка «Избранное»: лайкнутые расклады с картиной и словами
+              оракула;
+            </li>
             <li>— вкладка «История»: все ваши прошлые подборы по датам;</li>
             <li>— заметки и теги к каждой карточке;</li>
             <li>— синхронизация между устройствами в реальном времени.</li>
           </ul>
           <p className="mt-4 text-xs text-muted-foreground">
-            Это первая часть подключения Supabase. Содержимое появится в следующем PR.
+            Содержимое появится в следующем PR.
           </p>
         </section>
 
@@ -63,7 +109,11 @@ export default async function AccountPage() {
             <a href="/">К Арт-Оракулу</a>
           </Button>
           <form action={signOutAction}>
-            <Button type="submit" variant="ghost" className="text-destructive hover:text-destructive">
+            <Button
+              type="submit"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+            >
               Выйти
             </Button>
           </form>

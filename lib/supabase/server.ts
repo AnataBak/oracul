@@ -2,6 +2,11 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 
 export async function createSupabaseServerClient() {
+  // Awaiting cookies() first marks the route as dynamic so Next.js does not
+  // try to statically prerender pages that depend on Supabase, even when env
+  // vars are missing at build time.
+  const cookieStore = await cookies()
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
@@ -10,8 +15,6 @@ export async function createSupabaseServerClient() {
       "Supabase env variables NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY должны быть заданы.",
     )
   }
-
-  const cookieStore = await cookies()
 
   return createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
