@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Арт-Оракул - Искусство, которое понимает вас",
+  title: "Арт-терапия - Искусство, которое понимает вас",
   description:
     "Поделитесь своими эмоциями, и искусственный интеллект подберет картину из коллекции мировых музеев, которая поймет вас без слов.",
   generator: "v0.app",
