@@ -14,6 +14,16 @@ const loadingMessages = [
 const RANDOM_LOADING_ART_STORAGE_KEY = "art-oracle-random-loading-artworks"
 const RANDOM_LOADING_ART_LIMIT = 80
 const ARTWORK_AUTOPLAY_INTERVAL_MS = 5200
+const FRAME_DEFAULT_ASPECT = 4 / 5
+const FRAME_MAX_HEIGHT = "min(65vh, 560px)"
+
+function getFrameAspect(width: number, height: number): number {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return FRAME_DEFAULT_ASPECT
+  }
+
+  return width / height
+}
 
 type LoadingArtwork = {
   id: string
@@ -113,6 +123,7 @@ export function LoadingState({
   const [artworks, setArtworks] = useState<LoadingArtwork[]>([])
   const [activeArtworkIndex, setActiveArtworkIndex] = useState(0)
   const [autoplayResetKey, setAutoplayResetKey] = useState(0)
+  const [frameAspect, setFrameAspect] = useState<number>(FRAME_DEFAULT_ASPECT)
   const touchStartXRef = useRef<number | null>(null)
   const fallbackAttemptedArtworkIdsRef = useRef<Set<string>>(new Set())
   const activeArtwork = artworks[activeArtworkIndex]
@@ -262,15 +273,22 @@ export function LoadingState({
                 handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)
               }}
             >
-              <div className="relative aspect-[4/5]">
+              <div
+                className="relative mx-auto transition-[aspect-ratio,max-height] duration-300 ease-out"
+                style={{ aspectRatio: frameAspect, maxHeight: FRAME_MAX_HEIGHT }}
+              >
                 <Image
                   key={activeArtwork.id}
                   src={activeArtwork.imageUrl}
                   alt={activeArtwork.title}
                   fill
                   unoptimized
-                  className="animate-fade-in object-cover"
+                  className="animate-fade-in object-contain"
                   sizes="(max-width: 640px) 88vw, 384px"
+                  onLoad={(event) => {
+                    const target = event.currentTarget
+                    setFrameAspect(getFrameAspect(target.naturalWidth, target.naturalHeight))
+                  }}
                   onError={(event) => {
                     if (
                       activeArtwork.fallbackImageUrl &&
